@@ -1,9 +1,10 @@
 import { Authenticator, type UseAuthenticator } from '@aws-amplify/ui-react';
 import type { AuthUser } from 'aws-amplify/auth';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { ApiIdentityProvider } from './api/context';
 import { isConfigured } from './amplify';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Layout } from './components/Layout';
 import { Spinner } from './components/ui';
 import { LangProvider, useT } from './i18n/LangContext';
@@ -138,48 +139,86 @@ function ParentPage() {
   return <ParentScreen onSignOut={s.signOut} />;
 }
 
+/** Every route element sits inside its own boundary; the key resets it on navigation. */
+function Guarded({ children }: { children: ReactNode }) {
+  const { pathname } = useLocation();
+  return <ErrorBoundary resetKey={pathname}>{children}</ErrorBoundary>;
+}
+
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<HomePage />} />
+      <Route
+        path="/"
+        element={
+          <Guarded>
+            <HomePage />
+          </Guarded>
+        }
+      />
       <Route
         path="/onboarding"
-        element={<OnboardingRoute />}
+        element={
+          <Guarded>
+            <OnboardingRoute />
+          </Guarded>
+        }
       />
       <Route
         path="/parent"
         element={
-          <RequireCircle>
-            <ParentPage />
-          </RequireCircle>
+          <Guarded>
+            <RequireCircle>
+              <ParentPage />
+            </RequireCircle>
+          </Guarded>
         }
       />
-      <Route element={<Layout />}>
+      <Route
+        element={
+          <Guarded>
+            <Layout />
+          </Guarded>
+        }
+      >
         <Route
           path="/guardian"
           element={
-            <RequireCircle>
-              <GuardianScreen />
-            </RequireCircle>
+            <Guarded>
+              <RequireCircle>
+                <GuardianScreen />
+              </RequireCircle>
+            </Guarded>
           }
         />
         <Route
           path="/case/new"
           element={
-            <RequireCircle>
-              <CaseNewPage />
-            </RequireCircle>
+            <Guarded>
+              <RequireCircle>
+                <CaseNewPage />
+              </RequireCircle>
+            </Guarded>
           }
         />
         <Route
           path="/case/:id"
           element={
-            <RequireCircle>
-              <CaseDetailPage />
-            </RequireCircle>
+            <Guarded>
+              <RequireCircle>
+                <CaseDetailPage />
+              </RequireCircle>
+            </Guarded>
           }
         />
-        <Route path="/demo" element={<DemoPage />} />
+        <Route
+          path="/demo"
+          element={
+            <Guarded>
+              <DemoPage />
+            </Guarded>
+          }
+        />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

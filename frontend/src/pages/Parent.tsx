@@ -9,6 +9,7 @@ import { useProfile } from '../hooks/useProfile';
 import { Bi, LangProvider, useT } from '../i18n/LangContext';
 import { dayOfYearIST, formatDateEn, formatDateHi, istDateString } from '../lib/dates';
 import { moonEmoji, tithiForIstDay, vikramSamvat } from '../lib/panchang';
+import { normalizeMedicines } from '../lib/medicines';
 import { KEYS, readJson, readString, writeJson, writeString } from '../lib/storage';
 import { describeWeatherCode, fetchWeather, staleWeather, type Weather } from '../lib/weather';
 
@@ -129,7 +130,7 @@ function ParentTile({ embedded, onSignOut }: { embedded: boolean; onSignOut?: ()
   }, [city]);
 
   // ---- medicines ----
-  const meds = profile?.medicines ?? [];
+  const meds = useMemo(() => normalizeMedicines(profile?.medicines), [profile?.medicines]);
   const medsKey = KEYS.meds(identity, today);
   const [taken, setTaken] = useState<Record<number, boolean>>(() => readJson(medsKey, {}));
   const toggleMed = (i: number) => {
@@ -216,9 +217,12 @@ function ParentTile({ embedded, onSignOut }: { embedded: boolean; onSignOut?: ()
           </h2>
           {meds.length === 0 && <p className="muted">{t('medsNone')}</p>}
           {meds.map((m, i) => (
-            <label key={`${i}-${m}`} className={`check ${taken[i] ? 'done' : ''}`}>
+            <label key={`${i}-${m.name}`} className={`check ${taken[i] ? 'done' : ''}`}>
               <input type="checkbox" checked={Boolean(taken[i])} onChange={() => toggleMed(i)} />
-              <span>{m}</span>
+              <span>
+                {m.time && <strong className="med-time">{m.time} · </strong>}
+                {m.name}
+              </span>
             </label>
           ))}
           {allTaken && (

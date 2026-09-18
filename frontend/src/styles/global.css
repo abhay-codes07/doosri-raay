@@ -838,3 +838,19 @@ input[type='file'] {
   margin: 8px 0 4px;
   font-size: 2em;
 }
+
+/* ---------- Medicines ---------- */
+
+.med-time {
+  color: var(--accent);
+}
+
+.med-row {
+  flex-wrap: nowrap;
+}
+
+@media (max-width: 480px) {
+  .med-row {
+    flex-wrap: wrap;
+  }
+}

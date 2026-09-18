@@ -1,12 +1,13 @@
-import { useState, type FormEvent } from 'react';
+import { useId, useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useApi } from '../api/context';
 import { describeError } from '../api/client';
-import type { JoinRole, ProfileInput, Role } from '../api/types';
+import type { JoinRole, Medicine, ProfileInput, Role } from '../api/types';
 import { Spinner } from '../components/ui';
 import { INDIAN_STATES } from '../data/states';
 import { Bi, useLang, useT } from '../i18n/LangContext';
 import type { Lang } from '../i18n/strings';
+import { normalizeMedicines } from '../lib/medicines';
 import { KEYS, writeString } from '../lib/storage';
 import { useSession } from '../session';
 
@@ -40,7 +41,7 @@ export function OnboardingPage() {
   const [nPhone, setNPhone] = useState(p.neighbour?.phone ?? '');
   const [nAddress, setNAddress] = useState(p.neighbour?.address ?? '');
   const [codeWord, setCodeWord] = useState(p.codeWord ?? '');
-  const [medicines, setMedicines] = useState((p.medicines ?? []).join('\n'));
+  const [medicines, setMedicines] = useState<Medicine[]>(() => normalizeMedicines(p.medicines));
   const [pactAnswer, setPactAnswer] = useState<'yes' | 'no' | null>(null);
 
   const isParent = role === 'parent';
@@ -91,9 +92,8 @@ export function OnboardingPage() {
       input.neighbour = { name: nName.trim(), phone: nPhone.trim(), address: nAddress.trim() };
       input.codeWord = codeWord.trim();
       input.medicines = medicines
-        .split('\n')
-        .map((m) => m.trim())
-        .filter(Boolean);
+        .map((m) => ({ name: m.name.trim(), time: m.time.trim() }))
+        .filter((m) => m.name.length > 0);
     }
     try {
       await api.updateProfile(input);
@@ -288,13 +288,7 @@ export function OnboardingPage() {
                   {t('codeWordHelp')}
                 </span>
               </div>
-              <div className="field">
-                <label htmlFor="meds">{t('medicines')}</label>
-                <textarea id="meds" value={medicines} onChange={(e) => setMedicines(e.target.value)} aria-describedby="meds-help" />
-                <span id="meds-help" className="help">
-                  {t('medicinesHelp')}
-                </span>
-              </div>
+              <MedicineRows value={medicines} onChange={setMedicines} />
             </>
           )}
           <button type="submit" className="btn btn-primary btn-big btn-block" disabled={busy}>
@@ -346,5 +340,57 @@ export function OnboardingPage() {
         </section>
       )}
     </div>
+  );
+}
+
+/** Row editor for daily medicines: each row is {name, time} as the API stores it. */
+export function MedicineRows({ value, onChange }: { value: Medicine[]; onChange: (next: Medicine[]) => void }) {
+  const { t } = useT();
+  const baseId = useId();
+  const update = (i: number, patch: Partial<Medicine>) => onChange(value.map((m, j) => (j === i ? { ...m, ...patch } : m)));
+  return (
+    <fieldset className="field" style={{ border: 0, padding: 0 }}>
+      <legend className="label">{t('medicines')}</legend>
+      <span className="help" id={`${baseId}-help`}>
+        {t('medicinesHelp')}
+      </span>
+      {value.map((m, i) => (
+        <div key={i} className="row med-row" style={{ alignItems: 'flex-end' }}>
+          <div className="field grow" style={{ marginBottom: 0 }}>
+            <label htmlFor={`${baseId}-name-${i}`}>{t('medName')}</label>
+            <input
+              id={`${baseId}-name-${i}`}
+              value={m.name}
+              maxLength={100}
+              onChange={(e) => update(i, { name: e.target.value })}
+              aria-describedby={`${baseId}-help`}
+            />
+          </div>
+          <div className="field" style={{ marginBottom: 0, maxWidth: 140 }}>
+            <label htmlFor={`${baseId}-time-${i}`}>{t('medTime')}</label>
+            <input
+              id={`${baseId}-time-${i}`}
+              value={m.time}
+              maxLength={20}
+              placeholder={t('medTimePlaceholder')}
+              onChange={(e) => update(i, { time: e.target.value })}
+            />
+          </div>
+          <button
+            type="button"
+            className="btn btn-quiet"
+            onClick={() => onChange(value.filter((_, j) => j !== i))}
+            aria-label={`${t('remove')} ${m.name || String(i + 1)}`}
+          >
+            {t('remove')}
+          </button>
+        </div>
+      ))}
+      <div>
+        <button type="button" className="btn" disabled={value.length >= 20} onClick={() => onChange([...value, { name: '', time: '' }])}>
+          + {t('addMedicine')}
+        </button>
+      </div>
+    </fieldset>
   );
 }

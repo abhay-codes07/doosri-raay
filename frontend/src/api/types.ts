@@ -5,6 +5,11 @@ export type Role = 'parent' | 'guardian1' | 'guardian2' | 'son';
 export type JoinRole = 'parent' | 'guardian2' | 'son';
 export type LadderState = 'ok' | 'watching' | 'escalated';
 
+export interface Medicine {
+  name: string;
+  time: string;
+}
+
 export interface Neighbour {
   name?: string;
   phone?: string;
@@ -25,7 +30,7 @@ export interface Profile {
   holidayMode?: boolean;
   neighbour?: Neighbour;
   codeWord?: string;
-  medicines?: string[];
+  medicines?: Medicine[];
   photoKey?: string;
   photoUrl?: string;
   pactAccepted?: boolean;
@@ -70,7 +75,8 @@ export interface ProfileInput {
   holidayMode?: boolean;
   neighbour?: Neighbour;
   codeWord?: string;
-  medicines?: string[];
+  medicines?: Medicine[];
+  photoKey?: string;
   pactAccepted?: boolean;
 }
 
