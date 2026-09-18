@@ -16,7 +16,7 @@ STACK    ?= doosriraay
 REGION   ?= ap-south-1
 TEMPLATE := infra/template.yaml
 # Optional extra CloudFormation parameters for `make deploy`, e.g.
-#   make deploy PARAMS='AppOrigin=https://main.xxxx.amplifyapp.com DemoTimeouts=1'
+#   make deploy PARAMS='AppOrigins=https://main.xxxx.amplifyapp.com,http://localhost:5173 DemoTimeouts=1'
 PARAMS   ?=
 
 .PHONY: help validate build deploy deploy-guided outputs set-vapid seed eval test frontend-dev frontend-build teardown logs-api

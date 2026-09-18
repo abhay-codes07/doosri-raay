@@ -38,10 +38,10 @@ confirm_changeset = false
 fail_on_empty_changeset = false
 resolve_s3 = true
 resolve_image_repos = true
-# Set AppOrigin to the Amplify URL once you have it (no trailing slash); localhost for dev.
+# AppOrigins is a comma-separated list (no spaces, no trailing slashes): add the Amplify URL once you have it.
 # BudgetEmail enables the USD 20 / USD 50 monthly cost alarms. VapidPublicKey is the public half
 # from `npx web-push generate-vapid-keys`.
-parameter_overrides = "AppOrigin=\"http://localhost:5173\" DemoTimeouts=\"1\" DemoSeedEnabled=\"1\" DailyQuota=\"30\" BudgetEmail=\"\" VapidPublicKey=\"\" VapidSubject=\"mailto:team@example.com\" ModelId=\"global.anthropic.claude-sonnet-4-6\" FallbackModelId=\"global.anthropic.claude-haiku-4-5-20251001-v1:0\" BedrockRegion=\"ap-south-1\" PollyVoiceId=\"Kajal\""
+parameter_overrides = "AppOrigins=\"http://localhost:5173,http://localhost:4173\" DemoTimeouts=\"1\" DemoSeedEnabled=\"1\" DailyQuota=\"30\" BudgetEmail=\"\" VapidPublicKey=\"\" VapidSubject=\"mailto:team@example.com\" ModelId=\"global.anthropic.claude-sonnet-4-6\" FallbackModelId=\"global.anthropic.claude-haiku-4-5-20251001-v1:0\" BedrockRegion=\"ap-south-1\" PollyVoiceId=\"Kajal\""
 
 [default.delete.parameters]
 no_prompts = true

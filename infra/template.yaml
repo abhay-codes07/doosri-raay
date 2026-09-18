@@ -9,10 +9,14 @@ Description: >
 # Parameters
 # ---------------------------------------------------------------------------------------------
 Parameters:
-  AppOrigin:
-    Type: String
-    Default: http://localhost:5173
-    Description: Browser origin allowed by API Gateway CORS and the S3 upload bucket CORS (the Amplify URL in prod).
+  AppOrigins:
+    Type: CommaDelimitedList
+    Default: "http://localhost:5173,http://localhost:4173"
+    Description: >-
+      Comma-separated browser origins allowed by API Gateway CORS and the S3 upload bucket CORS
+      (no trailing slashes). Add the Amplify URL in prod, e.g.
+      "https://main.d1234.amplifyapp.com,http://localhost:5173". The first entry is also exported
+      as APP_ORIGIN for backward compatibility.
   ModelId:
     Type: String
     Default: global.anthropic.claude-sonnet-4-6
@@ -133,7 +137,7 @@ Resources:
       CorsConfiguration:
         CorsRules:
           - AllowedOrigins:
-              - Ref: AppOrigin
+              Ref: AppOrigins
             AllowedMethods:
               - GET
               - PUT
@@ -252,7 +256,7 @@ Resources:
     Properties:
       CorsConfiguration:
         AllowOrigins:
-          - Ref: AppOrigin
+          Ref: AppOrigins
         AllowHeaders:
           - authorization
           - content-type
@@ -312,8 +316,16 @@ Resources:
             Ref: Table
           UPLOAD_BUCKET:
             Ref: UploadBucket
+          # APP_ORIGINS is the full allow-list (the API echoes the matching request Origin);
+          # APP_ORIGIN (first entry) is kept for older code paths.
+          APP_ORIGINS:
+            Fn::Join:
+              - ","
+              - Ref: AppOrigins
           APP_ORIGIN:
-            Ref: AppOrigin
+            Fn::Select:
+              - 0
+              - Ref: AppOrigins
           BEDROCK_REGION:
             Ref: BedrockRegion
           MODEL_ID:

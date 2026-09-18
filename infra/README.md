@@ -5,7 +5,7 @@ Everything in this folder is deployed by one AWS SAM stack (`infra/template.yaml
 | Resource | Purpose |
 |---|---|
 | DynamoDB table (`Table`) | single table from `docs/DATA_MODEL.md`: PK/SK, GSI1, TTL on `ttl`, PITR on |
-| S3 bucket (`UploadBucket`) | screenshots via presigned POST; public access blocked, SSE-S3, CORS only for `AppOrigin`, `circles/` expires after 7 days, TLS-only bucket policy |
+| S3 bucket (`UploadBucket`) | screenshots via presigned POST; public access blocked, SSE-S3, CORS only for `AppOrigins`, `circles/` expires after 7 days, TLS-only bucket policy |
 | Cognito (`UserPool`, `UserPoolClient`) | e-mail sign-in, no client secret, SRP + USER_PASSWORD + refresh flows, 1 h tokens / 30 d refresh |
 | HTTP API (`HttpApi`) | every route from `docs/API.md` on one `ApiFunction`, JWT authorizer `CognitoJwt` as default, 5 rps / burst 10 |
 | Lambda | `ApiFunction`, `ClassifyWorkerFunction`, `LadderTaskFunction`, `WatchCheckFunction`, `LadderStatusFunction` (zip, python3.12, x86_64) and `RecoveryAgentFunction` (container image, Strands) |
@@ -34,9 +34,9 @@ make outputs                                 # ApiUrl, UserPoolId, UserPoolClien
 
 First time without a `samconfig.toml`: `make deploy-guided` walks through stack name (`doosriraay`), region (`ap-south-1`), parameters, and writes the file. Answer **Y** to "create managed ECR repositories" so the recovery-agent image has somewhere to go.
 
-Override parameters on the fly: `make deploy PARAMS='AppOrigin=https://main.d1234.amplifyapp.com BudgetEmail=team@example.com'`.
+Override parameters on the fly: `make deploy PARAMS='AppOrigins=https://main.d1234.amplifyapp.com,http://localhost:5173 BudgetEmail=team@example.com'` (a CommaDelimitedList parameter is passed as one comma-separated value, no spaces).
 
-Stack parameters (all have defaults): `AppOrigin`, `ModelId`, `FallbackModelId`, `BedrockRegion`, `DemoTimeouts` (0/1), `DemoSeedEnabled` (0/1), `DailyQuota`, `VapidPublicKey`, `VapidSubject`, `BudgetEmail`, `PollyVoiceId`.
+Stack parameters (all have defaults): `AppOrigins` (comma-separated list), `ModelId`, `FallbackModelId`, `BedrockRegion`, `DemoTimeouts` (0/1), `DemoSeedEnabled` (0/1), `DailyQuota`, `VapidPublicKey`, `VapidSubject`, `BudgetEmail`, `PollyVoiceId`.
 
 Build notes:
 - All zip functions share `CodeUri: ../backend/` and one `backend/requirements.txt` on purpose (one build, one layer of deps).
@@ -72,10 +72,10 @@ Only the public key is a stack parameter (it is also served by `GET /push/public
 5. After the first Amplify build, copy its URL (e.g. `https://main.d1234abcd.amplifyapp.com`) and **redeploy the backend with that origin** so API Gateway and S3 CORS accept it:
 
    ```bash
-   make deploy PARAMS='AppOrigin=https://main.d1234abcd.amplifyapp.com'
+   make deploy PARAMS='AppOrigins=https://main.d1234abcd.amplifyapp.com,http://localhost:5173'
    ```
 
-   `AppOrigin` is a single origin. For local development against the deployed API keep `http://localhost:5173` (the default) or run two stacks (`--stack-name doosriraay-dev`).
+   `AppOrigins` is a comma-separated list (default `http://localhost:5173,http://localhost:4173`, i.e. `vite dev` and `vite preview`). API Gateway and the S3 bucket accept every entry; the API reads the same list from `APP_ORIGINS` and echoes the matching request `Origin` (`APP_ORIGIN`, the first entry, is kept for backward compatibility). Keep the localhost entries in the list if you develop against the deployed API, or run two stacks (`--stack-name doosriraay-dev`).
 
 ## Cognito for the demo
 
