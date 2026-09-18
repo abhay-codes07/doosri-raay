@@ -6,7 +6,7 @@ Keys: `PK` (S), `SK` (S). GSI1: `GSI1PK`/`GSI1SK` (used for `CIRCLE#<id>` open t
 |---|---|---|---|
 | Profile | `USER#<sub>` | `PROFILE` | `sub, email, name, lang (hi/en), city, state, phone, role (parent/guardian1/guardian2/son), circleId, checkinHourIST, holidayMode, neighbour{name,phone,address}, codeWord, pushSub (JSON), createdAt, updatedAt` |
 | Circle meta | `CIRCLE#<id>` | `META` | `circleId, name, inviteCode, createdBy, createdAt` ; `GSI1PK=INVITE#<code>`, `GSI1SK=CIRCLE#<id>` |
-| Member | `CIRCLE#<id>` | `MEMBER#<sub>` | `sub, name, role, phone, joinedAt, activeWatchArn (parent only)` |
+| Member | `CIRCLE#<id>` | `MEMBER#<sub>` | `sub, name, role, phone, joinedAt, activeWatchArn, activeLadderArn, ladderState (parent only)` |
 | Check-in | `CIRCLE#<id>` | `CHECKIN#<YYYY-MM-DD>` | `ts, source (tile/sos), date` |
 | SOS | `CIRCLE#<id>` | `SOS#<ts>` | `lat, lon, accuracy, ts, ladderExecutionArn, ttl` |
 | Task | `CIRCLE#<id>` | `TASK#<ts>#<id>` | `taskId, kind, text, textHi, assigneeSub, assigneeName, status (open/done/expired), outcome, taskToken (never returned to clients), context (map), allowedOutcomes (list), createdAt, expiresAt, completedAt, completedBy, ttl` ; `GSI1PK=TASKID#<id>`, `GSI1SK=CIRCLE#<id>` (lookup by id) |
@@ -34,7 +34,9 @@ Lookups by id (`/tasks/{id}`, `/reports/{id}`, `/cases/{id}`) go through GSI1 (`
 | `WATCH_SM_ARN`, `LADDER_SM_ARN`, `RECOVERY_SM_ARN` | state machines (api Lambda) |
 | `CLASSIFY_FUNCTION_NAME` | for async invoke (api Lambda) |
 | `DEMO_TIMEOUTS` | `1` → 45-second deadlines and rung timeouts |
-| `DEMO_SEED_ENABLED` | `1` → `/demo/seed` enabled |
+| `DEMO_SEED_ENABLED` | `1` → `/demo/seed` enabled (default `0`; `/demo/reset` is enabled when this or `DEMO_TIMEOUTS` is `1`) |
+| `UPLOAD_MAX_BYTES` | presigned POST cap, default `3500000` |
+| `APP_ORIGINS` | comma-separated allowed origins (CORS); `APP_ORIGIN` is the first |
 | `DAILY_QUOTA` | default `30` |
 | `CHECKIN_DEADLINE_HOUR_DEFAULT` | default `11` (IST) |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY_PARAM`, `VAPID_SUBJECT` | Web Push; private key read from SSM SecureString at runtime |

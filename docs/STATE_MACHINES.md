@@ -9,7 +9,7 @@ Input:
 ```
 States:
 1. `WaitForDeadline` — `Wait`, `TimestampPath: $.deadline`.
-2. `CheckCheckin` — Lambda `watch-check` with Payload `{circleId, parentSub, startedAt, sinceTs, deadline}` → `{"checkedIn": true|false, "holidayMode": bool}` (checked in if a CHECKIN item with `ts >= sinceTs` exists, or holidayMode). `sinceTs` is the ISO timestamp the check-in window opened at (the start of the parent's day, not the moment the execution was started); `startedAt` is still passed for older executions.
+2. `CheckCheckin` — Lambda `watch-check` with Payload `{circleId, parentSub, startedAt, sinceTs, deadline}` → `{"checkedIn": true|false, "holidayMode": bool}` (checked in if a CHECKIN item with `ts > sinceTs` exists — strictly later, so the check-in that armed the watch never satisfies it — or holidayMode). `sinceTs` is the ISO timestamp the check-in window opened at (the start of the parent's day, not the moment the execution was started); `startedAt` is still passed for older executions.
 3. `Choice` — checkedIn or holidayMode → `Succeed` (`AllGood`); else `StartLadder`.
 4. `StartLadder` — `arn:aws:states:::states:startExecution` (async, not `.sync`) of `Ladder` with `{"AWS_STEP_FUNCTIONS_STARTED_BY_EXECUTION_ID":"$$.Execution.Id","circleId","parentSub","reason":"missed_checkin","timeouts"}` → `Succeed`. Every ladder-task Payload in `Ladder` also carries `executionArn` (`$$.Execution.Id`) so the backend can store the running ladder ARN and `StopExecution` it when the parent checks in.
 

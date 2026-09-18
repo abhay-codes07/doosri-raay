@@ -38,7 +38,7 @@ Caller becomes `guardian1` of a new circle. `200 {"circleId": "...", "inviteCode
 ## Check-in and ladder (hero)
 
 ### `POST /checkin`
-Body optional `{"source":"tile"|"sos"}` (default `tile`). Writes `CHECKIN#<YYYY-MM-DD>` (IST date), then starts the next `Watch` execution with deadline = next `checkinHourIST` IST (if `DEMO_TIMEOUTS=1`: now + 45 s). Idempotent per day (second call same day still refreshes `ts`, does not start another Watch if one is already running: stored `activeWatchArn` on the parent's MEMBER item is checked with `DescribeExecution`; if RUNNING, stop it and start a new one so the deadline moves forward). Only role `parent` may call; others `403`.
+Body optional `{"source":"tile"|"sos"}` (default `tile`). Writes `CHECKIN#<YYYY-MM-DD>` (IST date), stops any running Ladder (`activeLadderArn`, sets `ladderState=ok`, closes ladder tasks), then starts the next `Watch` execution with input `{circleId, parentSub, deadline, sinceTs, startedAt, timeouts}` where `sinceTs` is this check-in's `ts` and deadline = tomorrow at `checkinHourIST` IST once today has a check-in (if `DEMO_TIMEOUTS=1`: now + 45 s). Joining a circle in demo mode does not start a Watch; the first tile open does. Idempotent per day (second call same day still refreshes `ts`, does not start another Watch if one is already running: stored `activeWatchArn` on the parent's MEMBER item is checked with `DescribeExecution`; if RUNNING, stop it and start a new one so the deadline moves forward). Only role `parent` may call; others `403`.
 `200 {"date":"2026-09-18","nextDeadline":"..."}`.
 
 ### `POST /sos` (covert SOS)
@@ -72,7 +72,7 @@ Kinds and allowed outcomes:
 {"outcome":"no_answer"}
 ```
 or for `confirm_fields`: `{"outcome":"confirmed","txns":[{...}]}`; for `ncrp_filed`: `{"outcome":"filed","ackNo":"32901234567890"}`.
-Validates outcome ∈ allowedOutcomes, `ackNo` matches `^329\d{11}$`, txns pass `validate_fields` (see backend). Marks task `done`, then `SendTaskSuccess(taskToken, output={"outcome":..., "txns":..., "ackNo":...})`. If the task has no token (informational), just closes. Idempotent: completing a `done` task returns `200` without a second SendTaskSuccess. `200 {"taskId":..., "status":"done"}`.
+Validates outcome ∈ allowedOutcomes, `ackNo` matches `^\d{14}$` (a `warning` is returned if it does not start with 329, the prefix reported in the press), txns pass `validate_fields` (UPI/IMPS 12 digits or NEFT/RTGS 16–22 alphanumerics; invalid rows → `400 invalid_txns` listing the rows). For `confirm_fields`/`ncrp_filed` the confirmed txns / ackNo are persisted on the CASE first. Calls `SendTaskSuccess(taskToken, output={"outcome":..., "txns":..., "ackNo":...})` first, then marks the task `done`; any other Step Functions error → `502 step_functions_error` and the task stays open. If the task has no token (informational), just closes. Idempotent: completing a `done` task returns `200` without a second SendTaskSuccess. `200 {"taskId":..., "status":"done"}`.
 
 ## Classifier (minor tool)
 
@@ -80,7 +80,7 @@ Validates outcome ∈ allowedOutcomes, `ackNo` matches `^329\d{11}$`, txns pass 
 ```json
 {"contentType":"image/png","purpose":"analyze"|"case"}
 ```
-Returns a presigned **POST** (not PUT) restricted to `content-length-range 0..5242880` and `Content-Type` starts-with `image/`. Key = `circles/<circleId>/<purpose>/<uuid>.<ext>`.
+Returns a presigned **POST** (not PUT) restricted to `content-length-range 0..UPLOAD_MAX_BYTES` (default 3,500,000, below Bedrock's 3.75 MB per-image limit) and `Content-Type` starts-with `image/`. Key = `circles/<circleId>/<purpose>/<uuid>.<ext>`; `purpose: "photo"` → `photos/<circleId>/<uuid>.<ext>` (the only prefix accepted as `photoKey`).
 `200 {"url":"https://...", "fields":{...}, "objectKey":"..."}`.
 
 ### `POST /analyze`
@@ -146,3 +146,5 @@ Push payload: `{"title":"Doosri Raay","body":"<task text>","taskId":"...","url":
 ### `POST /demo/seed` — **only when `DEMO_SEED_ENABLED=1`**, caller must be in the seeded circle or the circle doesn't exist yet. Creates circle "Sharma family" with parent Papa, guardian1 Priya, guardian2 Rahul, son Aman, neighbour, and returns the circleId. Cognito users are created by `scripts/seed.py` (admin API), not by this route.
 
 ### `GET /demo/config` → `{"demoTimeouts":true|false,"rungTimeoutSeconds":45,"watchDeadlineSeconds":45}`.
+
+### `POST /demo/reset` — guardians only; available when `DEMO_SEED_ENABLED=1` or `DEMO_TIMEOUTS=1` (else 404). Stops the parent's running Watch and Ladder executions, closes every open task in the circle, sets `ladderState=ok`, deletes today's CHECKIN so the tile can re-arm. `200 {"ok":true,"stopped":[...],"closedTasks":n,"checkinCleared":bool}`.
