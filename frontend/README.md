@@ -2,15 +2,27 @@
 
 Vite + React 18 + TypeScript PWA. Two faces of one app:
 
-- **Parent** (`/parent`): a Panchang tile — date, approximate tithi, weather, medicines, photo, a daily thought.
-  Opening it *is* the daily check-in (`POST /checkin`, once per IST day). Nothing on this screen mentions
-  scams, alerts, guardians or the ladder. Triple-tapping the date sends a covert SOS. The "Madad" section holds
-  the two Puchho buttons and the screenshot check.
-- **Guardian** (`/guardian`): parent status, open tasks (polled every 5 s) rendered per kind with their
-  allowed outcomes as big buttons, recovery cases, recent checks, Web Push opt-in.
-- **Recovery case** (`/case/new`, `/case/:id`): intake with screenshots, extracted transactions beside the
-  screenshot with live UTR validation, 1930 script, NCRP narrative, freeze letter, e-Zero FIR note, MRM checklist.
+- **Parent** (`/parent`): a Panchang tile — date, approximate tithi, weather, medicines (`{name, time}` rows),
+  photo, a daily thought. Opening it *is* the daily check-in (`POST /checkin`, once per IST day). Nothing on this
+  screen mentions scams, alerts, guardians or the ladder. Triple-tapping the date sends a covert SOS: the tile
+  keeps a background `watchPosition` and posts the last known fix at once (accuracy `-1` if none), retrying up to
+  three times with backoff; the only feedback is a 200 ms flicker. Location permission is asked once, during
+  onboarding, never at SOS time. The "Madad" section holds the two Puchho buttons and the screenshot check.
+- **Guardian** (`/guardian`): parent status (`GET /profile` polled every 5 s), open tasks (polled every 5 s)
+  rendered per kind with their allowed outcomes as big buttons, recovery cases, recent checks, Web Push opt-in,
+  link to Settings.
+- **Settings** (`/settings`): holiday-mode toggle (parents; `POST /profile {holidayMode}`) and family photo
+  upload (`POST /uploads` purpose `photo`, then `POST /profile {photoKey}`). `POST /profile` only edits the
+  caller, so guardians see a note that holiday mode is switched from the parent's phone.
+- **Recovery case** (`/case/new`, `/case/:id`): intake with up to 5 screenshots of ≤ 3.5 MB each (checked
+  before upload), extracted transactions paired with their screenshot by `objectKey`, live reference validation
+  (12-digit UPI/IMPS or 16–22 alphanumeric NEFT/RTGS with a rail label), an "Add manually" row editor when
+  nothing was extracted, 1930 script, NCRP narrative, freeze letter, e-Zero FIR note and MRM checklist each with
+  `Source: outlet, date` and a caveat.
 - **Demo** (`/demo`): one browser, two phones (see below).
+- **Auth**: a custom Hindi-first sign-in / sign-up / confirm-code screen (`src/auth/AuthGate.tsx`) on
+  `aws-amplify/auth`; no `@aws-amplify/ui-react`. Every route is lazy-loaded and wrapped in an error boundary
+  that shows "Kuch gadbad hui, dobara kholein" with a reload button instead of a blank page.
 
 ## Run
 
@@ -24,8 +36,15 @@ npm run lint                 # eslint
 npm run preview              # serve dist/ locally (service worker + push need this or HTTPS)
 ```
 
-Deploy `dist/` to Amplify Hosting (SPA rewrite `</^[^.]+$|\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webmanifest)$)([^.]+$)/>` → `/index.html`).
-`APP_ORIGIN` on the backend must equal the deployed origin (CORS on the API and the upload bucket).
+## Deploy (Amplify Hosting)
+
+The repo root has an `amplify.yml` (`appRoot: frontend`, `npm ci` → `npm run build`, artifacts from `dist/`,
+`node_modules` cached). Connect the repo in the Amplify console, set the environment variables below on the
+app, and add the SPA rewrite rule
+`</^[^.]+$|\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webmanifest)$)([^.]+$)/>` → `/index.html`
+(200). `APP_ORIGIN` on the backend must equal the deployed origin (CORS on the API and the upload bucket).
+No `VITE_APP_ORIGINS` variable exists or is needed: the frontend never checks its own origin; CORS is decided
+by the backend's `APP_ORIGIN`.
 
 ## Environment variables
 
@@ -39,6 +58,8 @@ Deploy `dist/` to Amplify Hosting (SPA rewrite `</^[^.]+$|\.(?!(css|gif|ico|jpg|
 | `VITE_DEMO_PARENT_EMAIL` | no | prefills the parent e-mail on `/demo` (never a password) |
 
 Without the three required values the app renders a configuration notice instead of the sign-in screen.
+All of these are read at build time (Vite inlines `import.meta.env.VITE_*`), so on Amplify Hosting they must be
+set as app environment variables before the build runs. There is no `VITE_APP_ORIGINS`.
 
 ## Demo mode (`/demo`)
 
@@ -50,8 +71,10 @@ injected into the API client through `ApiTokenProvider` (`src/api/context.tsx`),
 calls the API as Papa while the right pane keeps Priya's session. Reloading the page forgets Papa's token.
 
 The badge at the top reads `GET /demo/config`; with `DEMO_TIMEOUTS=1` the watch deadline and ladder rungs are 45 s.
-"Reset demo" clears this browser's local state (check-in day marker, medicine ticks, report list, previews) and
-remounts both panes; it does not touch the backend.
+"Reset demo" calls `POST /demo/reset` as the guardian (stops running executions, closes open tasks, clears
+today's check-in), then clears this browser's local state (check-in day marker, medicine ticks, report list,
+previews) and remounts both panes. Both panes derive their element ids from `useId()`, so labels and file inputs
+never collide across the two phones.
 
 Demo flow: open `/demo`, sign in Papa on the left (the tile posts a check-in, which starts a 45 s Watch); do
 nothing; after the deadline the ladder starts and "Call Papa now" appears on the right; tap "No answer" to walk the
@@ -70,15 +93,20 @@ foreground. Service workers need HTTPS or `localhost`.
 ```
 src/
   api/        client.ts (fetch wrapper, typed routes, poll helpers), context.tsx (token override), types.ts
+  auth/       AuthGate.tsx (custom sign-in / sign-up / confirm on aws-amplify/auth)
   lib/        panchang.ts (Meeus-style tithi), weather.ts (Open-Meteo), push.ts, storage.ts, dates.ts,
-              validate.ts, cognitoPasswordAuth.ts
+              validate.ts (reference/ack rules, upload limits), geo.ts (SOS position cache), medicines.ts,
+              cognitoPasswordAuth.ts
   i18n/       strings.ts (every UI string, hi + en), LangContext.tsx (useT, <Bi/>)
-  components/ TaskCard, VerdictCard, ScreenshotCheck, PushButton, Layout, ui
-  pages/      Home, Onboarding, Parent, Guardian, CaseNew, CaseDetail, Demo
+  components/ TaskCard, VerdictCard, ScreenshotCheck, PushButton, Layout, ErrorBoundary, ui
+  pages/      Home, Onboarding, Parent, Guardian, Settings, CaseNew, CaseDetail, Demo (all lazy-loaded)
   data/       thoughts.json (20 daily thoughts), states.ts
   sw.ts       service worker
   styles/     global.css (CSS variables, light + dark via prefers-color-scheme)
 ```
+
+Bundle (`npm run build`): main chunk ≈ 357 kB (gzip ≈ 112 kB) plus per-route chunks of 0.5–18 kB and ≈ 11 kB of
+CSS; the service worker precaches ≈ 445 KiB.
 
 ## Design rules enforced in code
 
