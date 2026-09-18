@@ -96,6 +96,15 @@ def ensure_user(idp, pool_id: str, email: str, name: str, password: str) -> str:
     return status
 
 
+def user_sub(idp, pool_id: str, email: str) -> str:
+    """Cognito ``sub`` of an existing user (POST /demo/seed needs it for every member)."""
+    resp = idp.admin_get_user(UserPoolId=pool_id, Username=email)
+    for attr in resp.get("UserAttributes", []):
+        if attr.get("Name") == "sub":
+            return attr["Value"]
+    raise RuntimeError(f"user {email} has no sub attribute")
+
+
 def id_token(idp, client_id: str, email: str, password: str) -> str:
     resp = idp.initiate_auth(
         ClientId=client_id,
@@ -159,9 +168,15 @@ def main(argv: list[str] | None = None) -> int:
     # 3./4. circle
     circle_status: dict[str, str] = {}
     if args.use_demo_seed:
-        code, body = api(args.api_url, tokens[priya], "POST", "/demo/seed")
+        # body contract (docs/API.md, backend/README.md): {"members": [{"sub", "role", "name", "phone"}]}
+        members = [{"sub": user_sub(idp, args.user_pool_id, u["email"]), "role": u["role"], "name": u["name"],
+                    "phone": u["phone"]} for u in USERS]
+        code, body = api(args.api_url, tokens[priya], "POST", "/demo/seed", {"members": members})
         print(f"POST /demo/seed -> {code} {body}")
         if code >= 300:
+            if code == 409:
+                print("a member already belongs to a different circle; use the join flow or reset the demo circle",
+                      file=sys.stderr)
             return 1
         for u in USERS:
             circle_status[u["email"]] = f"demo-seed ({body.get('circleId', '?')})"
