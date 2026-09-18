@@ -1,4 +1,8 @@
-"""watch-check Lambda: {circleId, parentSub, startedAt} -> {checkedIn, holidayMode}."""
+"""watch-check Lambda: {circleId, parentSub, sinceTs|startedAt} -> {checkedIn, holidayMode}.
+
+A check-in counts only when its ``ts`` is strictly *after* ``sinceTs`` (the check-in that armed
+this Watch, or the join time). ``startedAt`` is accepted as a fallback for older inputs.
+"""
 from __future__ import annotations
 
 import logging
@@ -10,14 +14,14 @@ log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
 
 
-def checked_in_since(circle_id: str, started_at: str) -> bool:
+def checked_in_since(circle_id: str, since_ts: str) -> bool:
     items = db.query_prefix(db.circle_pk(circle_id), "CHECKIN#", limit=2, reverse=True)
-    if not started_at:
+    if not since_ts:
         return bool(items)
-    start = db.parse_iso(started_at)
+    since = db.parse_iso(since_ts)
     for item in items:
         ts = item.get("ts")
-        if ts and db.parse_iso(ts) >= start:
+        if ts and db.parse_iso(ts) > since:
             return True
     return False
 
@@ -27,6 +31,7 @@ def handler(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]:
     parent_sub = event.get("parentSub", "")
     profile = auth.load_profile(parent_sub) if parent_sub else None
     holiday = bool((profile or {}).get("holidayMode", False))
-    checked = checked_in_since(circle_id, event.get("startedAt", ""))
-    log.info("watch-check circle=%s checkedIn=%s holiday=%s", circle_id, checked, holiday)
+    since = event.get("sinceTs") or event.get("startedAt") or ""
+    checked = checked_in_since(circle_id, since)
+    log.info("watch-check circle=%s since=%s checkedIn=%s holiday=%s", circle_id, since, checked, holiday)
     return {"checkedIn": checked, "holidayMode": holiday}

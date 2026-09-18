@@ -30,7 +30,19 @@ def compute_timeouts(demo: Optional[bool] = None) -> Dict[str, int]:
     return dict(DEMO_TIMEOUTS if demo else PROD_TIMEOUTS)
 
 
-def next_deadline(checkin_hour_ist: int, demo: Optional[bool] = None, now: Optional[dt.datetime] = None) -> dt.datetime:
+def next_deadline(
+    checkin_hour_ist: int,
+    demo: Optional[bool] = None,
+    now: Optional[dt.datetime] = None,
+    checked_in_today: bool = False,
+) -> dt.datetime:
+    """Next Watch deadline.
+
+    Demo mode: ``now + 45 s``. Otherwise: if the parent has already checked in on today's IST
+    date (``checked_in_today``; the arming check-in counts), the deadline is *tomorrow* at
+    ``checkin_hour_ist`` IST - today's hour has been satisfied even when it is still ahead.
+    Otherwise today at that hour if it is still in the future, else tomorrow.
+    """
     now = now or utcnow()
     if demo is None:
         demo = config.demo_timeouts()
@@ -39,10 +51,15 @@ def next_deadline(checkin_hour_ist: int, demo: Optional[bool] = None, now: Optio
     hour = max(0, min(23, int(checkin_hour_ist)))
     local = now.astimezone(IST)
     candidate = local.replace(hour=hour, minute=0, second=0, microsecond=0)
-    if candidate <= local:
+    if checked_in_today or candidate <= local:
         candidate = candidate + dt.timedelta(days=1)
     return candidate.astimezone(dt.timezone.utc)
 
 
-def next_deadline_iso(checkin_hour_ist: int, demo: Optional[bool] = None, now: Optional[dt.datetime] = None) -> str:
-    return now_iso(next_deadline(checkin_hour_ist, demo, now))
+def next_deadline_iso(
+    checkin_hour_ist: int,
+    demo: Optional[bool] = None,
+    now: Optional[dt.datetime] = None,
+    checked_in_today: bool = False,
+) -> str:
+    return now_iso(next_deadline(checkin_hour_ist, demo, now, checked_in_today))

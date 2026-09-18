@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import json
 
 from common import db, tasks, timeouts
 from ladder import status as ladder_status
@@ -17,6 +18,20 @@ def test_compute_timeouts_and_deadline():
     later = dt.datetime(2026, 9, 18, 6, 0, tzinfo=dt.timezone.utc)  # 11:30 IST -> tomorrow
     assert timeouts.next_deadline_iso(11, demo=False, now=later) == "2026-09-19T05:30:00Z"
     assert timeouts.next_deadline_iso(11, demo=True, now=now) == "2026-09-18T03:00:45Z"
+
+
+def test_next_deadline_skips_today_after_a_checkin():
+    """A check-in today (the arming one included) satisfies today's hour: the deadline is tomorrow."""
+    early = dt.datetime(2026, 9, 18, 3, 0, tzinfo=dt.timezone.utc)  # 08:30 IST, before the 11:00 hour
+    assert timeouts.next_deadline_iso(11, demo=False, now=early, checked_in_today=True) == "2026-09-19T05:30:00Z"
+    assert timeouts.next_deadline_iso(11, demo=False, now=early, checked_in_today=False) == "2026-09-18T05:30:00Z"
+    late = dt.datetime(2026, 9, 18, 6, 0, tzinfo=dt.timezone.utc)  # 11:30 IST
+    assert timeouts.next_deadline_iso(11, demo=False, now=late, checked_in_today=True) == "2026-09-19T05:30:00Z"
+    # IST midnight boundary: 23:30 IST on the 18th is 18:00Z; "today" is still the 18th
+    night = dt.datetime(2026, 9, 18, 18, 0, tzinfo=dt.timezone.utc)
+    assert timeouts.next_deadline_iso(11, demo=False, now=night, checked_in_today=False) == "2026-09-19T05:30:00Z"
+    # demo mode ignores the flag
+    assert timeouts.next_deadline_iso(11, demo=True, now=early, checked_in_today=True) == "2026-09-18T03:00:45Z"
 
 
 def test_ladder_task_rungs(api, family):
@@ -71,14 +86,32 @@ def test_ladder_status_closes_tasks(api, family):
 def test_watch_check(api, family):
     circle = family["circleId"]
     started = db.now_iso(db.utcnow() - dt.timedelta(minutes=5))
-    assert watch_check.handler({"circleId": circle, "parentSub": "p1", "startedAt": started}, None) == {
+    assert watch_check.handler({"circleId": circle, "parentSub": "p1", "sinceTs": started}, None) == {
         "checkedIn": False, "holidayMode": False}
     api("POST", "/checkin", "p1", {})
+    assert watch_check.handler({"circleId": circle, "parentSub": "p1", "sinceTs": started}, None)["checkedIn"] is True
+    # legacy input name still works
     assert watch_check.handler({"circleId": circle, "parentSub": "p1", "startedAt": started}, None)["checkedIn"] is True
     future = db.now_iso(db.utcnow() + dt.timedelta(minutes=5))
-    assert watch_check.handler({"circleId": circle, "parentSub": "p1", "startedAt": future}, None)["checkedIn"] is False
+    assert watch_check.handler({"circleId": circle, "parentSub": "p1", "sinceTs": future}, None)["checkedIn"] is False
     api("POST", "/profile", "p1", {"holidayMode": True})
-    assert watch_check.handler({"circleId": circle, "parentSub": "p1", "startedAt": future}, None)["holidayMode"] is True
+    assert watch_check.handler({"circleId": circle, "parentSub": "p1", "sinceTs": future}, None)["holidayMode"] is True
+
+
+def test_watch_check_ignores_the_checkin_that_armed_it(api, family):
+    """The hero bug: the check-in that started the Watch must not satisfy that same Watch."""
+    circle = family["circleId"]
+    sfn = family["sfn"]
+    api("POST", "/checkin", "p1", {})
+    watch_input = json.loads(sfn.started[-1]["input"])
+    item = db.get_item("CIRCLE#%s" % circle, "CHECKIN#%s" % db.ist_date())
+    assert watch_input["sinceTs"] == item["ts"] == watch_input["startedAt"]
+    payload = {"circleId": circle, "parentSub": "p1", "sinceTs": watch_input["sinceTs"],
+               "startedAt": watch_input["startedAt"]}
+    assert watch_check.handler(payload, None)["checkedIn"] is False
+    # a later check-in (next day, or a refreshed ts) does count
+    db.set_attributes(item["PK"], item["SK"], {"ts": db.now_iso(db.parse_iso(item["ts"]) + dt.timedelta(seconds=1))})
+    assert watch_check.handler(payload, None)["checkedIn"] is True
 
 
 def test_recovery_task_kinds_update_case(api, family):

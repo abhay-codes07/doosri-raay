@@ -1,6 +1,7 @@
 """checkin writes CHECKIN and (re)starts the Watch; sos creates guardian tasks and starts the Ladder."""
 from __future__ import annotations
 
+import datetime as dt
 import json
 
 from common import db
@@ -21,7 +22,9 @@ def test_checkin_writes_item_and_restarts_watch(api, family):
     assert member["activeWatchArn"] == sfn.started[-1]["executionArn"]
     payload = json.loads(sfn.started[-1]["input"])
     assert payload["circleId"] == family["circleId"] and payload["deadline"] == body["nextDeadline"]
-    assert set(payload) >= {"circleId", "parentSub", "deadline", "startedAt", "timeouts"}
+    assert set(payload) >= {"circleId", "parentSub", "deadline", "sinceTs", "startedAt", "timeouts"}
+    assert payload["sinceTs"] == item["ts"]
+    assert member["watchSinceTs"] == item["ts"]
 
     # second call the same day refreshes ts and restarts again
     first_ts = item["ts"]
@@ -58,3 +61,15 @@ def test_sos_creates_tasks_and_starts_ladder(api, family):
     assert sos_tasks[0]["allowedOutcomes"] == ["done"] and "taskToken" not in sos_tasks[0]
     assert api("POST", "/sos", family["guardian1"], {})[0] == 403
     assert api("POST", "/sos", family["parent"], {"lat": 999})[0] == 400
+
+
+def test_checkin_in_prod_mode_moves_deadline_to_tomorrow(api, family, monkeypatch):
+    monkeypatch.setenv("DEMO_TIMEOUTS", "0")
+    api("POST", "/profile", family["parent"], {"checkinHourIST": 23})
+    status, body = api("POST", "/checkin", family["parent"], {})
+    assert status == 200
+    deadline = db.parse_iso(body["nextDeadline"]).astimezone(db.IST)
+    today = db.parse_iso(db.now_iso()).astimezone(db.IST).date()
+    # even though 23:00 IST may still be ahead today, today's check-in is done: tomorrow 23:00 IST
+    assert deadline.hour == 23 and deadline.minute == 0
+    assert deadline.date() == today + dt.timedelta(days=1)
