@@ -7,7 +7,7 @@ import { ScreenshotCheck } from '../components/ScreenshotCheck';
 import { TaskCard } from '../components/TaskCard';
 import { VerdictCard } from '../components/VerdictCard';
 import { Empty, ErrorBox, Section, Spinner } from '../components/ui';
-import { usePoll, useProfile } from '../hooks/useProfile';
+import { usePoll } from '../hooks/useProfile';
 import { useT } from '../i18n/LangContext';
 import type { StringKey } from '../i18n/strings';
 import { formatTimeIST, relativeTime } from '../lib/dates';
@@ -35,7 +35,8 @@ export function GuardianScreen({ embedded = false }: { embedded?: boolean }) {
   const api = useApi();
   const identity = useApiIdentity();
   const { t, lang } = useT();
-  const profile = useProfile(true);
+  // The status card polls GET /profile alongside tasks so ladderState/lastCheckin update live.
+  const profile = usePoll(() => api.getProfile(), 5000, [api]);
   const circle = profile.data?.circle ?? null;
   const parent = circle?.members.find((m) => m.role === 'parent') ?? null;
   const me = profile.data?.profile ?? null;
@@ -46,9 +47,9 @@ export function GuardianScreen({ embedded = false }: { embedded?: boolean }) {
   const onComplete = useCallback(
     async (taskId: string, body: CompleteTaskBody) => {
       await api.completeTask(taskId, body);
-      await tasks.refresh();
+      await Promise.all([tasks.refresh(), profile.refresh()]);
     },
-    [api, tasks],
+    [api, tasks, profile],
   );
 
   const ladderState: LadderState | undefined =
@@ -68,7 +69,7 @@ export function GuardianScreen({ embedded = false }: { embedded?: boolean }) {
             {ladderState && <span className={`badge ${LADDER_COPY[ladderState].badge}`}>{ladderState}</span>}
           </div>
           {profile.loading && !profile.data && <Spinner label={t('loading')} />}
-          {profile.error && !profile.data && <ErrorBox message={profile.error} onRetry={() => void profile.reload()} />}
+          {profile.error && !profile.data && <ErrorBox message={profile.error} onRetry={() => void profile.refresh()} />}
           {profile.data && !parent && (
             <p className="muted">
               {t('noParent')} <strong>{circle?.inviteCode ?? '—'}</strong>
