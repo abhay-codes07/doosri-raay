@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useApi, useApiIdentity } from '../api/context';
 import { describeError, isAbort } from '../api/client';
 import type { PuchhoAuthorityResponse, PuchhoStatus } from '../api/types';
@@ -33,6 +33,7 @@ function ParentTile({ embedded, onSignOut }: { embedded: boolean; onSignOut?: ()
   const api = useApi();
   const identity = useApiIdentity();
   const { t } = useT();
+  const uid = useId();
   const { data, loading, error, reload } = useProfile(true);
   const profile = data?.profile ?? null;
   const guardian1 = data?.circle?.members.find((m) => m.role === 'guardian1');
@@ -160,9 +161,9 @@ function ParentTile({ embedded, onSignOut }: { embedded: boolean; onSignOut?: ()
     <div className={`parent-mode ${embedded ? '' : 'page page-narrow'}`} lang="hi">
       <div className="stack" style={{ gap: 16 }}>
         {/* Date + tithi */}
-        <section className="card" aria-labelledby="date-hi">
+        <section className="card" aria-labelledby={`${uid}-date`}>
           <div className={`tile-date ${flick ? 'flick' : ''}`} onClick={onDateTap} role="presentation">
-            <p id="date-hi" className="tile-date-hi">
+            <p id={`${uid}-date`} className="tile-date-hi">
               {formatDateHi(now)}
             </p>
             <p className="tile-date-en" lang="en">
@@ -184,8 +185,8 @@ function ParentTile({ embedded, onSignOut }: { embedded: boolean; onSignOut?: ()
         </section>
 
         {/* Weather */}
-        <section className="card" aria-labelledby="wx-title">
-          <h2 id="wx-title" style={{ fontSize: '1em' }} className="muted">
+        <section className="card" aria-labelledby={`${uid}-wx`}>
+          <h2 id={`${uid}-wx`} style={{ fontSize: '1em' }} className="muted">
             <Bi k="weather" /> {city && <span>· {weather?.place ?? city}</span>}
           </h2>
           {!city && <p className="muted">{t('weatherNoCity')}</p>}
@@ -210,8 +211,8 @@ function ParentTile({ embedded, onSignOut }: { embedded: boolean; onSignOut?: ()
         </section>
 
         {/* Medicines */}
-        <section className="card" aria-labelledby="meds-title">
-          <h2 id="meds-title" style={{ fontSize: '1.1em' }}>
+        <section className="card" aria-labelledby={`${uid}-meds`}>
+          <h2 id={`${uid}-meds`} style={{ fontSize: '1.1em' }}>
             <Bi k="medsTitle" />
           </h2>
           {meds.length === 0 && <p className="muted">{t('medsNone')}</p>}
@@ -232,8 +233,8 @@ function ParentTile({ embedded, onSignOut }: { embedded: boolean; onSignOut?: ()
         </section>
 
         {/* Photo of the day */}
-        <section className="card" aria-labelledby="photo-title">
-          <h2 id="photo-title" style={{ fontSize: '1em' }} className="muted">
+        <section className="card" aria-labelledby={`${uid}-photo`}>
+          <h2 id={`${uid}-photo`} style={{ fontSize: '1em' }} className="muted">
             <Bi k="photoTitle" />
           </h2>
           {profile?.photoUrl ? (
@@ -252,8 +253,8 @@ function ParentTile({ embedded, onSignOut }: { embedded: boolean; onSignOut?: ()
         </section>
 
         {/* Thought */}
-        <section className="card card-soft" aria-labelledby="thought-title">
-          <h2 id="thought-title" style={{ fontSize: '1em' }} className="muted">
+        <section className="card card-soft" aria-labelledby={`${uid}-thought`}>
+          <h2 id={`${uid}-thought`} style={{ fontSize: '1em' }} className="muted">
             <Bi k="thoughtTitle" />
           </h2>
           <p className="thought">“{thought.hi}”</p>
@@ -291,6 +292,7 @@ type PuchhoPhase =
 function MadadSection({ guardianName }: { guardianName?: string }) {
   const api = useApi();
   const { t } = useT();
+  const uid = useId();
   const [phase, setPhase] = useState<PuchhoPhase>({ kind: 'idle' });
   const audioRef = useRef<HTMLAudioElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -336,8 +338,8 @@ function MadadSection({ guardianName }: { guardianName?: string }) {
   const familyOk = phase.kind === 'family_result' && phase.result.outcome === 'yes' && phase.result.codeWordMatched !== false;
 
   return (
-    <section className="card" aria-labelledby="madad-title">
-      <h2 id="madad-title" style={{ fontSize: '1.2em' }}>
+    <section className="card" aria-labelledby={`${uid}-madad`}>
+      <h2 id={`${uid}-madad`} style={{ fontSize: '1.2em' }}>
         <Bi k="madad" />
       </h2>
       <p className="muted" style={{ marginTop: 0 }}>

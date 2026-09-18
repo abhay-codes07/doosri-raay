@@ -1,5 +1,6 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useId, useState, type FormEvent } from 'react';
 import { ApiTokenProvider, useApi } from '../api/context';
+import { describeError } from '../api/client';
 import type { DemoConfig } from '../api/types';
 import { Spinner } from '../components/ui';
 import { useT } from '../i18n/LangContext';
@@ -15,6 +16,7 @@ import { ParentScreen } from './Parent';
 export function DemoPage() {
   const api = useApi();
   const { t } = useT();
+  const uid = useId();
   const [parentToken, setParentToken] = useState<string | null>(null);
   const [parentEmail, setParentEmail] = useState(import.meta.env.VITE_DEMO_PARENT_EMAIL ?? '');
   const [password, setPassword] = useState('');
@@ -23,6 +25,7 @@ export function DemoPage() {
   const [config, setConfig] = useState<DemoConfig | null | 'error'>(null);
   const [epoch, setEpoch] = useState(0);
   const [resetMsg, setResetMsg] = useState<string | null>(null);
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -50,11 +53,22 @@ export function DemoPage() {
     }
   };
 
-  const resetDemo = () => {
-    removePrefix(KEYS.prefix);
-    setEpoch((n) => n + 1);
-    setResetMsg(t('demoResetDone'));
-    window.setTimeout(() => setResetMsg(null), 2000);
+  /** POST /demo/reset as the guardian (the Amplify session), then clear this browser's state. */
+  const resetDemo = async () => {
+    setResetting(true);
+    setResetMsg(null);
+    let msg = t('demoResetDone');
+    try {
+      await api.demoReset();
+    } catch (e) {
+      msg = `${t('demoResetServerFailed')} (${describeError(e)})`;
+    } finally {
+      removePrefix(KEYS.prefix);
+      setEpoch((n) => n + 1);
+      setResetting(false);
+      setResetMsg(msg);
+      window.setTimeout(() => setResetMsg(null), 4000);
+    }
   };
 
   return (
@@ -71,11 +85,11 @@ export function DemoPage() {
             </span>
           )}
           <span className="small muted">{t('demoTimings')}</span>
-          <button type="button" className="btn" onClick={resetDemo}>
-            {t('demoReset')}
+          <button type="button" className="btn" disabled={resetting} onClick={() => void resetDemo()}>
+            {resetting ? <Spinner label={t('demoResetting')} /> : t('demoReset')}
           </button>
           {resetMsg && (
-            <span className="badge badge-ok" role="status">
+            <span className={`badge ${resetMsg === t('demoResetDone') ? 'badge-ok' : 'badge-amber'}`} role="status">
               {resetMsg}
             </span>
           )}
@@ -96,12 +110,12 @@ export function DemoPage() {
             {!parentToken ? (
               <form className="card" onSubmit={signInParent}>
                 <div className="field">
-                  <label htmlFor="demo-email">{t('demoParentEmail')}</label>
-                  <input id="demo-email" type="email" value={parentEmail} autoComplete="username" onChange={(e) => setParentEmail(e.target.value)} required />
+                  <label htmlFor={`${uid}-email`}>{t('demoParentEmail')}</label>
+                  <input id={`${uid}-email`} type="email" value={parentEmail} autoComplete="username" onChange={(e) => setParentEmail(e.target.value)} required />
                 </div>
                 <div className="field">
-                  <label htmlFor="demo-pw">{t('demoParentPassword')}</label>
-                  <input id="demo-pw" type="password" value={password} autoComplete="current-password" onChange={(e) => setPassword(e.target.value)} required />
+                  <label htmlFor={`${uid}-pw`}>{t('demoParentPassword')}</label>
+                  <input id={`${uid}-pw`} type="password" value={password} autoComplete="current-password" onChange={(e) => setPassword(e.target.value)} required />
                 </div>
                 {error && (
                   <p className="alert alert-error" role="alert">

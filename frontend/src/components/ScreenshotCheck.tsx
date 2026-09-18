@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useApi, useApiIdentity } from '../api/context';
 import { describeError, isAbort } from '../api/client';
 import type { Report } from '../api/types';
@@ -27,6 +27,7 @@ export function ScreenshotCheck({
   const api = useApi();
   const identity = useApiIdentity();
   const { t, lang } = useT();
+  const uid = useId();
   const [file, setFile] = useState<File | null>(null);
   const [text, setText] = useState('');
   const [phase, setPhase] = useState<Phase>('idle');
@@ -112,8 +113,8 @@ export function ScreenshotCheck({
   const canRun = !busy && (file !== null || text.trim().length > 0);
 
   return (
-    <section className="card" aria-labelledby="sc-title">
-      <h2 id="sc-title" style={{ fontSize: parentMode ? '1.2em' : '1.05em' }}>
+    <section className="card" aria-labelledby={`${uid}-title`}>
+      <h2 id={`${uid}-title`} style={{ fontSize: parentMode ? '1.2em' : '1.05em' }}>
         {parentMode ? <Bi k="screenshotCheck" /> : t('screenshotCheck')}
       </h2>
       <p className="muted" style={{ marginTop: 0 }}>
@@ -130,9 +131,9 @@ export function ScreenshotCheck({
       ) : (
         <div className="stack">
           <div className="field">
-            <label htmlFor="sc-file">{parentMode ? <Bi k="uploadImage" /> : t('uploadImage')}</label>
+            <label htmlFor={`${uid}-file`}>{parentMode ? <Bi k="uploadImage" /> : t('uploadImage')}</label>
             <input
-              id="sc-file"
+              id={`${uid}-file`}
               ref={fileInput}
               type="file"
               accept="image/*"
@@ -141,9 +142,9 @@ export function ScreenshotCheck({
             />
           </div>
           <div className="field">
-            <label htmlFor="sc-text">{parentMode ? <Bi k="pasteText" /> : t('pasteText')}</label>
+            <label htmlFor={`${uid}-text`}>{parentMode ? <Bi k="pasteText" /> : t('pasteText')}</label>
             <textarea
-              id="sc-text"
+              id={`${uid}-text`}
               value={text}
               disabled={busy || file !== null}
               onChange={(e) => setText(e.target.value)}

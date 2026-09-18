@@ -312,6 +312,13 @@ export interface PushPublicKeyResponse {
   publicKey: string;
 }
 
+export interface DemoResetResponse {
+  ok?: boolean;
+  stoppedExecutions?: number;
+  closedTasks?: number;
+  clearedCheckin?: boolean;
+}
+
 export interface DemoConfig {
   demoTimeouts: boolean;
   rungTimeoutSeconds?: number;

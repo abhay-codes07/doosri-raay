@@ -12,6 +12,7 @@ import type {
   CreateCaseResponse,
   CreateCircleResponse,
   DemoConfig,
+  DemoResetResponse,
   JoinCircleResponse,
   JoinRole,
   Profile,
@@ -109,6 +110,8 @@ export interface ApiClient {
   pushSubscribe(sub: PushSubscriptionJSON): Promise<void>;
   // demo
   getDemoConfig(): Promise<DemoConfig>;
+  /** Stops executions, closes tasks and clears today's check-in for the caller's circle. */
+  demoReset(): Promise<DemoResetResponse>;
 }
 
 const sleep = (ms: number, signal?: AbortSignal) =>
@@ -239,6 +242,7 @@ export function createApiClient(getToken: TokenProvider = amplifyTokenProvider):
       await request('POST', '/push/subscribe', sub);
     },
     getDemoConfig: () => request('GET', '/demo/config'),
+    demoReset: () => request('POST', '/demo/reset', {}),
   };
   return client;
 }

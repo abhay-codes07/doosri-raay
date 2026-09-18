@@ -334,7 +334,9 @@ export const S = {
   demoConfigOff: { hi: 'DEMO_TIMEOUTS बंद (production समय)', en: 'DEMO_TIMEOUTS off (production timings)' },
   demoConfigUnknown: { hi: 'demo config नहीं मिली', en: 'demo config unavailable' },
   demoReset: { hi: 'Reset demo', en: 'Reset demo' },
-  demoResetDone: { hi: 'स्थानीय state साफ़', en: 'Local state cleared' },
+  demoResetDone: { hi: 'Demo reset हो गया', en: 'Demo reset done' },
+  demoResetting: { hi: 'Reset हो रहा है…', en: 'Resetting…' },
+  demoResetServerFailed: { hi: 'Server reset नहीं हुआ; सिर्फ़ local state साफ़', en: 'Server reset failed; only local state cleared' },
   demoTokenNote: { hi: 'Token सिर्फ़ memory में रहता है; पेज reload पर फिर साइन इन करें।', en: 'Token lives in memory only; sign in again after a reload.' },
   demoNeedParent: { hi: 'बाईं ओर parent के रूप में साइन इन करें।', en: 'Sign in as the parent on the left.' },
 } as const satisfies Record<string, BiString>;
