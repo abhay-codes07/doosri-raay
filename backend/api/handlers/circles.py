@@ -37,18 +37,28 @@ def create_circle(name: str, created_by: str) -> Dict[str, Any]:
 
 
 def add_member(circle_id: str, profile: Dict[str, Any], role: str) -> Dict[str, Any]:
+    """Create the MEMBER item; an existing member is never overwritten (role, activeWatchArn,
+    activeLadderArn and ladderState are kept - only name/phone are refreshed)."""
     sub = profile["sub"]
-    member = {
-        "PK": db.circle_pk(circle_id),
-        "SK": db.member_sk(sub),
-        "sub": sub,
-        "circleId": circle_id,
-        "name": profile.get("name", ""),
-        "role": role,
-        "phone": profile.get("phone", ""),
-        "joinedAt": db.now_iso(),
-    }
-    db.put_item(member)
+    existing = db.get_item(db.circle_pk(circle_id), db.member_sk(sub))
+    if existing:
+        role = existing.get("role") or role
+        member = db.set_attributes(
+            db.circle_pk(circle_id), db.member_sk(sub),
+            {"name": profile.get("name", existing.get("name", "")), "phone": profile.get("phone", existing.get("phone", ""))},
+        ) or existing
+    else:
+        member = {
+            "PK": db.circle_pk(circle_id),
+            "SK": db.member_sk(sub),
+            "sub": sub,
+            "circleId": circle_id,
+            "name": profile.get("name", ""),
+            "role": role,
+            "phone": profile.get("phone", ""),
+            "joinedAt": db.now_iso(),
+        }
+        db.put_item(member, condition="attribute_not_exists(PK)")
     db.set_attributes(db.user_pk(sub), auth.PROFILE_SK, {"circleId": circle_id, "role": role})
     return member
 
@@ -80,21 +90,26 @@ def post_join(req: Any) -> Dict[str, Any]:
         raise ApiError(404, "not_found", "Invite code not found")
     circle_id = meta["circleId"]
     profile = auth.load_profile(req.sub) or upsert_profile(req.sub, {}, auth.get_email(req.event))
-    if profile.get("circleId") and profile["circleId"] != circle_id:
-        raise ApiError(409, "already_in_circle", "You are already in another circle")
+    if profile.get("circleId"):
+        raise ApiError(409, "already_in_circle", "You are already in a circle")
     members = db.circle_members(circle_id)
     existing = db.member_by_role(members, role)
     if existing and existing.get("sub") != req.sub:
         raise ApiError(409, "role_taken", "That role is already taken in this circle")
-    add_member(circle_id, profile, role)
+    member = add_member(circle_id, profile, role)
     if role == "parent":
-        _start_parent_watch(circle_id, profile)
+        _start_parent_watch(circle_id, profile, member.get("joinedAt"))
     return ok({"circleId": circle_id, "role": role})
 
 
-def _start_parent_watch(circle_id: str, profile: Dict[str, Any]) -> None:
+def _start_parent_watch(circle_id: str, profile: Dict[str, Any], joined_at: Optional[str] = None) -> None:
+    """Prod: the first Watch starts at join time (sinceTs = join time). Demo (DEMO_TIMEOUTS=1):
+    nothing starts here - the first tile open (POST /checkin) arms the 45-second Watch, otherwise
+    every freshly seeded family would escalate 45 s after joining."""
     hour = profile.get("checkinHourIST")
     if hour is None:
         hour = config.checkin_hour_default()
         db.set_attributes(db.user_pk(profile["sub"]), auth.PROFILE_SK, {"checkinHourIST": hour})
-    checkin.start_watch(circle_id, profile["sub"], int(hour))
+    if config.demo_timeouts():
+        return
+    checkin.start_watch(circle_id, profile["sub"], int(hour), since_ts=joined_at)

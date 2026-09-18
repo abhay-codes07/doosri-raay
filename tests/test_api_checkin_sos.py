@@ -9,15 +9,14 @@ from common import db
 
 def test_checkin_writes_item_and_restarts_watch(api, family):
     sfn = family["sfn"]
-    before = len(sfn.started)  # one Watch from the parent join
+    before = len(sfn.started)
+    assert before == 0  # demo mode: joining does not arm a Watch; the first tile open does
     status, body = api("POST", "/checkin", family["parent"], {"source": "tile"})
     assert status == 200, body
     assert body["date"] == db.ist_date() and body["nextDeadline"].endswith("Z")
     item = db.get_item("CIRCLE#%s" % family["circleId"], "CHECKIN#%s" % body["date"])
     assert item["source"] == "tile" and item["ts"]
-    # the running Watch from onboarding was stopped and a new one started
-    assert len(sfn.started) == before + 1
-    assert sfn.stopped == [sfn.started[before - 1]["executionArn"]]
+    assert len(sfn.started) == before + 1 and sfn.stopped == []
     member = db.get_item("CIRCLE#%s" % family["circleId"], "MEMBER#%s" % family["parent"])
     assert member["activeWatchArn"] == sfn.started[-1]["executionArn"]
     payload = json.loads(sfn.started[-1]["input"])
@@ -32,7 +31,8 @@ def test_checkin_writes_item_and_restarts_watch(api, family):
     assert status == 200
     item2 = db.get_item("CIRCLE#%s" % family["circleId"], "CHECKIN#%s" % body2["date"])
     assert item2["ts"] >= first_ts
-    assert len(sfn.started) == before + 2 and len(sfn.stopped) == 2
+    # the running Watch from the first check-in was stopped and a new one started
+    assert len(sfn.started) == before + 2 and sfn.stopped == [sfn.started[before]["executionArn"]]
 
 
 def test_checkin_parent_only(api, family):

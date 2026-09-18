@@ -57,6 +57,7 @@ ROUTES: Dict[str, Handler] = {
     "GET /push/public-key": push.get_public_key,
     "POST /push/subscribe": push.post_subscribe,
     "POST /demo/seed": demo.post_seed,
+    "POST /demo/reset": demo.post_reset,
     "GET /demo/config": demo.get_config,
 }
 

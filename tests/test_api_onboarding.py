@@ -66,14 +66,21 @@ def test_circle_create_join_and_role_taken(api, sfn):
     api("POST", "/profile", "p1", {"name": "Papa"})
     status, joined = api("POST", "/circles/join", "p1", {"inviteCode": created["inviteCode"].lower(), "role": "parent"})
     assert status == 200 and joined == {"circleId": created["circleId"], "role": "parent"}
-    # parent join defaults checkinHourIST and starts a Watch
+    # parent join defaults checkinHourIST; in demo mode no Watch starts (the first tile open arms it)
     prof = db.get_item("USER#p1", "PROFILE")
     assert prof["checkinHourIST"] == 11 and prof["role"] == "parent"
-    assert len(sfn.started) == 1
-    watch_input = json.loads(sfn.started[0]["input"])
-    assert watch_input["parentSub"] == "p1" and watch_input["timeouts"]["rung"] == 45
+    assert sfn.started == []
     member = db.get_item("CIRCLE#%s" % created["circleId"], "MEMBER#p1")
-    assert member["activeWatchArn"] == sfn.started[0]["executionArn"]
+    assert "activeWatchArn" not in member and member["joinedAt"]
+    # already in a circle: 409, even for the same circle; the MEMBER item is untouched
+    db.set_attributes("CIRCLE#%s" % created["circleId"], "MEMBER#p1", {"activeWatchArn": "arn:keep"})
+    status, body = api("POST", "/circles/join", "p1", {"inviteCode": created["inviteCode"], "role": "parent"})
+    assert status == 409 and body["error"] == "already_in_circle"
+    status, body = api("POST", "/circles/join", "p1", {"inviteCode": created["inviteCode"], "role": "son"})
+    assert status == 409 and body["error"] == "already_in_circle"
+    member = db.get_item("CIRCLE#%s" % created["circleId"], "MEMBER#p1")
+    assert member["activeWatchArn"] == "arn:keep" and member["role"] == "parent"
+    assert db.get_item("USER#p1", "PROFILE")["role"] == "parent"
 
     api("POST", "/profile", "p2", {"name": "Mummy"})
     status, body = api("POST", "/circles/join", "p2", {"inviteCode": created["inviteCode"], "role": "parent"})
@@ -84,3 +91,34 @@ def test_circle_create_join_and_role_taken(api, sfn):
     status, body = api("GET", "/profile", "g1")
     roles = sorted(m["role"] for m in body["circle"]["members"])
     assert roles == ["guardian1", "parent"]
+
+
+def test_parent_join_in_prod_starts_watch_since_join_time(api, sfn, monkeypatch):
+    monkeypatch.setenv("DEMO_TIMEOUTS", "0")
+    api("POST", "/profile", "g1", {"name": "Priya"})
+    status, created = api("POST", "/circles", "g1", {})
+    api("POST", "/profile", "p1", {"name": "Papa", "checkinHourIST": 9})
+    status, joined = api("POST", "/circles/join", "p1", {"inviteCode": created["inviteCode"], "role": "parent"})
+    assert status == 200, joined
+    assert len(sfn.started) == 1
+    watch_input = json.loads(sfn.started[0]["input"])
+    member = db.get_item("CIRCLE#%s" % created["circleId"], "MEMBER#p1")
+    assert watch_input["parentSub"] == "p1" and watch_input["timeouts"]["rung"] == 900
+    assert watch_input["sinceTs"] == member["joinedAt"] and member["activeWatchArn"] == sfn.started[0]["executionArn"]
+    deadline = db.parse_iso(watch_input["deadline"]).astimezone(db.IST)
+    assert deadline.hour == 9 and deadline.minute == 0 and deadline > db.utcnow()
+
+
+def test_add_member_never_overwrites_existing_member(api, family):
+    from api.handlers.circles import add_member
+
+    circle = family["circleId"]
+    db.set_attributes("CIRCLE#%s" % circle, "MEMBER#p1", {"activeWatchArn": "arn:w", "activeLadderArn": "arn:l",
+                                                          "ladderState": "watching"})
+    profile = db.get_item("USER#p1", "PROFILE")
+    member = add_member(circle, {**profile, "name": "Papa ji"}, "son")
+    stored = db.get_item("CIRCLE#%s" % circle, "MEMBER#p1")
+    assert stored["role"] == "parent" and member["role"] == "parent"
+    assert stored["activeWatchArn"] == "arn:w" and stored["activeLadderArn"] == "arn:l" and stored["ladderState"] == "watching"
+    assert stored["name"] == "Papa ji"
+    assert db.get_item("USER#p1", "PROFILE")["role"] == "parent"

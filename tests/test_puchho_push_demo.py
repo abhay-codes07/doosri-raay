@@ -101,11 +101,19 @@ def test_demo_seed_and_config(api, sfn, monkeypatch):
     assert papa["role"] == "parent" and papa["codeWord"] == "gulab jamun" and papa["neighbour"]["name"]
     assert papa["checkinHourIST"] == 11 and papa["circleId"] == circle_id
     assert sorted(m["role"] for m in db.circle_members(circle_id)) == ["guardian1", "guardian2", "parent", "son"]
-    assert len(sfn.started) == 1  # Watch for Papa
-    # idempotent re-seed keeps the same circle
+    assert sfn.started == []  # demo mode: no Watch until Papa opens the tile
+    # idempotent re-seed keeps the same circle and does not wipe the parent's MEMBER item
+    db.set_attributes("CIRCLE#%s" % circle_id, "MEMBER#papa-sub", {"activeWatchArn": "arn:keep"})
     status, again = api("POST", "/demo/seed", "papa-sub", {"members": members})
     assert status == 200 and again["circleId"] == circle_id
     assert len(db.circle_members(circle_id)) == 4
+    assert db.get_item("CIRCLE#%s" % circle_id, "MEMBER#papa-sub")["activeWatchArn"] == "arn:keep"
+    # a member who already belongs to a different circle is refused
+    api("POST", "/profile", "x1", {"name": "Other"})
+    api("POST", "/circles", "x1", {})
+    status, body = api("POST", "/demo/seed", "priya-sub", {"members": members[:3] + [{"sub": "x1", "role": "son"}]})
+    assert status == 409 and body["error"] == "member_in_other_circle"
+    assert api("POST", "/demo/seed", "priya-sub", {"members": members + [{"sub": "aman-sub", "role": "son"}]})[0] == 400
     status, cfg = api("GET", "/demo/config", "priya-sub")
     assert cfg["demoTimeouts"] is True and cfg["rungTimeoutSeconds"] == 45 and cfg["watchDeadlineSeconds"] == 45
 
@@ -114,3 +122,45 @@ def test_demo_seed_and_config(api, sfn, monkeypatch):
     monkeypatch.setenv("DEMO_TIMEOUTS", "0")
     status, cfg = api("GET", "/demo/config", "priya-sub")
     assert cfg["demoTimeouts"] is False and cfg["rungTimeoutSeconds"] == 900
+
+
+def test_demo_seed_in_prod_mode_starts_watch_once(api, sfn, monkeypatch):
+    monkeypatch.setenv("DEMO_TIMEOUTS", "0")
+    members = [{"sub": "papa-sub", "role": "parent"}, {"sub": "priya-sub", "role": "guardian1"}]
+    assert api("POST", "/demo/seed", "priya-sub", {"members": members})[0] == 200
+    assert len(sfn.started) == 1
+    assert api("POST", "/demo/seed", "priya-sub", {"members": members})[0] == 200
+    assert len(sfn.started) == 1  # re-seed keeps the running Watch
+
+
+def test_demo_reset_stops_everything_and_clears_today(api, family, monkeypatch):
+    from ladder import task as ladder_task
+
+    sfn = family["sfn"]
+    circle = family["circleId"]
+    api("POST", "/checkin", "p1", {})
+    watch_arn = sfn.started[-1]["executionArn"]
+    status, sos_body = api("POST", "/sos", "p1", {"lat": 1, "lon": 2, "accuracy": 3})
+    ladder_arn = sos_body["ladderExecutionArn"]
+    ladder_task.handler({"kind": "guardian_call", "rung": 1, "assigneeRole": "guardian1", "circleId": circle,
+                         "parentSub": "p1", "reason": "sos", "wait": True, "taskToken": "t", "executionArn": ladder_arn}, None)
+    db.set_attributes("CIRCLE#%s" % circle, "MEMBER#p1", {"ladderState": "watching"})
+    assert api("POST", "/demo/reset", "p1", {})[0] == 403   # parent cannot
+    assert api("POST", "/demo/reset", "s1", {})[0] == 403   # son cannot
+    status, body = api("POST", "/demo/reset", "g2", {})
+    assert status == 200 and body["ok"] is True, body
+    assert sorted(body["stopped"]) == sorted([watch_arn, ladder_arn])
+    assert watch_arn in sfn.stopped and ladder_arn in sfn.stopped
+    member = db.get_item("CIRCLE#%s" % circle, "MEMBER#p1")
+    assert member["ladderState"] == "ok" and member["activeLadderArn"] is None and member["activeWatchArn"] is None
+    assert db.get_item("CIRCLE#%s" % circle, "CHECKIN#%s" % db.ist_date()) is None
+    status, open_tasks = api("GET", "/tasks", "g1")
+    assert open_tasks["tasks"] == []
+    assert body["closedTasks"] >= 3
+    # re-arm works: the next tile open starts a fresh Watch
+    status, again = api("POST", "/checkin", "p1", {})
+    assert status == 200 and db.get_item("CIRCLE#%s" % circle, "MEMBER#p1")["activeWatchArn"] == sfn.started[-1]["executionArn"]
+    # not available outside demo stacks
+    monkeypatch.setenv("DEMO_SEED_ENABLED", "0")
+    monkeypatch.setenv("DEMO_TIMEOUTS", "0")
+    assert api("POST", "/demo/reset", "g1", {})[0] == 404
