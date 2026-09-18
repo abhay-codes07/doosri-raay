@@ -48,17 +48,17 @@ Sources with paper ids are listed in `docs/RESEARCH.md`, §7.
 
 ## What Doosri Raay does
 
-Everything in this section is implemented in this repo (`frontend/`, `backend/`, `infra/`); anything that is
-only partly built is marked as such.
+Everything in this section is implemented in this repo (`frontend/`, `backend/`, `infra/`); what is not built
+is listed under [What does not ship](#what-does-not-ship-and-why).
 
 **Hero 1: the passive isolation ladder.** The parent's app is a genuinely useful Panchang tile: today's tithi
 and date, weather, medicine reminders, a daily thought and a family-photo card. Opening it is the check-in
 (`POST /checkin`, once per IST day). If the tile is not opened by the parent's deadline **and** a guardian's
 call goes unanswered (the two-signal rule), a Step Functions ladder escalates guardian 1 → guardian 2 → a named
 neighbour with a script and the address → 112 guidance. Zero victim action. Nothing ever appears on the
-parent's screen. *Partly built:* the photo card renders a photo when `photoKey` is set on the parent's profile
-through `POST /profile` (the API returns a 1-hour presigned URL); there is no upload screen yet, so the seeded
-demo shows the placeholder card.
+parent's screen. The family photo is uploaded by the family from `/settings` (presigned S3 POST, then
+`photoKey` on the profile; the tile receives a 1-hour presigned URL) and the card shows a placeholder until one
+is set.
 
 **Hero 2: the recovery case manager.** A guardian (or the parent) opens a case after a loss. A Strands agent
 extracts UTR / amount / payee / time from screenshots, code validates every field (12-digit UTR regex, amount
@@ -303,9 +303,9 @@ messages), so a larger eval is roadmap.
   Singapore CPF trusted-contact model and the evidence that informal helpers who hold credentials become a
   risk themselves (Latulipe, CHI 2022/2025).
 - **Consent pact.** The parent agrees at onboarding, with a forced yes/no (`pactAccepted`), to who gets called
-  and in what order; the app does not work without it. The parent decides what is shared. *Not built yet:*
-  revoking the pact from inside the app, and a UI toggle for holiday mode (`holidayMode` exists as a profile
-  flag that the `Watch` machine honours, settable only through `POST /profile`).
+  and in what order; the app does not work without it. The parent decides what is shared. Holiday mode
+  (`holidayMode`, which makes the `Watch` machine treat a missed check-in as fine) is a checkbox at onboarding
+  and a toggle on `/settings`. *Not built yet:* revoking the pact from inside the app.
 - **Data retention.** Screenshots expire from S3 after 7 days (lifecycle rule); reports, tasks and SOS items
   carry DynamoDB TTLs; no audio is ever captured. Every read handler compares the item's `circleId` with the
   caller's token and returns 404 on mismatch.
@@ -328,8 +328,8 @@ messages), so a larger eval is roadmap.
 - **Background push is best-effort.** Web Push is implemented (VAPID keys in SSM, `POST /push/subscribe`), but
   if it does not deliver on the recording machine the guardian view is shown in the foreground and the video
   says so.
-- **Not built (yet):** a photo upload screen, a holiday-mode toggle, in-app pact revocation, a check-in history
-  view, a Chakshu deadline timer. See the notes in the sections above.
+- **Not built (yet):** in-app pact revocation, a check-in history view (the guardian sees only the last
+  check-in), a Chakshu deadline timer. See the notes in the sections above.
 
 ## Prior art
 
