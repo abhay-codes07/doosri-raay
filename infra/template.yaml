@@ -5,6 +5,16 @@ Description: >
   Region-agnostic, intended for ap-south-1. All intrinsics use the long form (Fn::Sub / Ref /
   Fn::GetAtt) so the file stays plain-YAML parsable (see infra/validate_asl.py).
 
+# Free-form notes for humans (CloudFormation ignores unknown Metadata keys). The full walkthrough
+# is infra/README.md -> "First deploy checklist".
+Metadata:
+  DoosriRaay::FirstDeployChecklist:
+    - "1. Bedrock: `aws bedrock list-foundation-models --region ap-south-1` and confirm Anthropic model access is granted in the Bedrock console. Both ModelId (Sonnet 4.6) and FallbackModelId (Haiku 4.5) are Anthropic, so blocked Anthropic access disables the fallback too; enable access, or set FallbackModelId=global.amazon.nova-2-lite-v1:0 as an emergency fallback (the classifier tool schema works with any Converse tool-use model)."
+    - "2. `sam build --use-container` (or `make build`, which sets BUILDX_NO_DEFAULT_ATTESTATIONS=1), then `make image-check` / `docker image inspect` on the built recovery-agent image: it must be a single-manifest linux/amd64 image, not an OCI index with attestations."
+    - "3. `sam deploy --guided` with the parameter values (AppOrigins, BudgetEmail - set it or you have no cost alarm -, VapidPublicKey, DemoTimeouts, DemoSeedEnabled)."
+    - "4. `make env` (writes frontend/.env.local), `make seed`, then `cd frontend && npm run dev`."
+    - "5. If you enabled DemoSeedEnabled=1, redeploy with DemoSeedEnabled=0 after seeding. `make seed` uses /circles/join, so /demo/seed is normally not needed at all."
+
 # ---------------------------------------------------------------------------------------------
 # Parameters
 # ---------------------------------------------------------------------------------------------

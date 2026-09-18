@@ -23,14 +23,28 @@ The template uses only long-form intrinsics (`Fn::Sub`, `Ref`, `Fn::GetAtt`) so 
 - Docker Desktop running (`sam build --use-container` builds the Python functions in the x86_64 Lambda build image; the recovery agent is a container image).
 - Node 20 (`frontend/`), Python 3.10+ (`scripts/`, `eval/`, tests), GNU make (Git Bash on Windows works).
 
+## First deploy checklist
+
+Do these once, in order (the same list is embedded as `Metadata` at the top of `infra/template.yaml`):
+
+1. **Bedrock model access.** `aws bedrock list-foundation-models --region ap-south-1` must succeed, and in the Bedrock console -> *Model access* the Anthropic models must show **Access granted** (Claude Sonnet 4.6 and Claude Haiku 4.5; the stack calls them through the `global.anthropic.*` inference profiles). Note that **both** `ModelId` (Sonnet 4.6) and `FallbackModelId` (Haiku 4.5) are Anthropic models: if Anthropic access is blocked for the account, the fallback does not help. Either enable access (a paid-plan account may need to accept the Anthropic EULA once) or deploy with `FallbackModelId=global.amazon.nova-2-lite-v1:0` as an emergency fallback - the classifier's tool schema is plain Converse tool-use and works with any Converse tool-use model. Smoke test: `aws bedrock-runtime converse --model-id global.anthropic.claude-sonnet-4-6 --messages '[{"role":"user","content":[{"text":"hi"}]}]' --region ap-south-1`.
+2. **Build and inspect the image.** `make build` (`sam build --use-container` with `BUILDX_NO_DEFAULT_ATTESTATIONS=1`), then `make image-check`, which runs `docker build --platform linux/amd64 -f backend/recovery_agent/Dockerfile backend` and `docker image inspect` and prints `Architecture` / `Os`. It must say `linux/amd64` and a single image manifest. If your Docker produces an OCI image index with provenance/SBOM attestations (`unknown/unknown` entries in `docker buildx imagetools inspect`), Lambda rejects the image; rebuild with `DOCKER_BUILDKIT=1 docker build --provenance=false --sbom=false ...` or keep `BUILDX_NO_DEFAULT_ATTESTATIONS=1` exported (the Makefile does this for `build`, `deploy`, `deploy-guided` and `image-check`).
+3. **Deploy.** `make deploy-guided` (`sam deploy --guided`) the first time; answer with your parameter values: `AppOrigins` (comma-separated, keep the localhost entries for dev), **`BudgetEmail` (set it or you have no cost alarm)**, `VapidPublicKey`, `DemoTimeouts` (1 for the demo), `DemoSeedEnabled` (leave at 0). Answer **Y** to "create managed ECR repositories". Later deploys: `make deploy PARAMS="AppOrigins=... BudgetEmail=..."`.
+4. **Wire the frontend and seed.** `make env` writes `frontend/.env.local` from the stack outputs; `make seed` runs `scripts/seed.py` with `--user-pool-id/--client-id/--api-url/--region` read from the same outputs (it creates the demo users with the Cognito admin API and the circle through `/circles` + `/circles/join`); then `cd frontend && npm run dev`.
+5. **Lock the demo switches.** `make seed` never calls `POST /demo/seed`, so `DemoSeedEnabled` can stay `0`. If you did set `DemoSeedEnabled=1` for some reason, redeploy with `DemoSeedEnabled=0` after seeding (`make deploy PARAMS="DemoSeedEnabled=0"`), and set `DemoTimeouts=0` for anything beyond the demo.
+
 ## One-command deploy
 
 ```bash
-cp samconfig.example.toml samconfig.toml     # edit parameter_overrides if you like (it is git-ignored)
+cp samconfig.example.toml samconfig.toml     # edit parameter_overrides (it is git-ignored); set BudgetEmail
 make validate                                # sam validate --lint + python infra/validate_asl.py
 make deploy                                  # sam build --use-container && sam deploy
 make outputs                                 # ApiUrl, UserPoolId, UserPoolClientId, ... as a table
+make env                                     # -> frontend/.env.local (VITE_API_URL, VITE_USER_POOL_ID, VITE_USER_POOL_CLIENT_ID, VITE_REGION)
+make seed                                    # scripts/seed.py with the ids/URL read from the stack outputs
 ```
+
+`make outputs`, `make env` and `make seed` read the stack through `sam list stack-outputs --output json`, parsed by `infra/outputs.py` (prints `KEY=VALUE` lines; `--shell` for `eval`, `--vite PATH` to write the env file, keeping any other keys such as `VITE_VAPID_PUBLIC_KEY` already in it). On Windows use Git Bash + GNU make (or `mingw32-make SHELL=sh`); pass `SAM=/path/to/sam.exe` if the SAM CLI is not on PATH.
 
 First time without a `samconfig.toml`: `make deploy-guided` walks through stack name (`doosriraay`), region (`ap-south-1`), parameters, and writes the file. Answer **Y** to "create managed ECR repositories" so the recovery-agent image has somewhere to go.
 
@@ -40,7 +54,7 @@ Stack parameters (all have defaults): `AppOrigins` (comma-separated list), `Mode
 
 Build notes:
 - All zip functions share `CodeUri: ../backend/` and one `backend/requirements.txt` on purpose (one build, one layer of deps).
-- `RecoveryAgentFunction` builds `backend/recovery_agent/Dockerfile` with context `backend/`, tag `v1`, platform `linux/amd64` (all functions are x86_64 so no QEMU emulation is needed on x86 laptops). Verified locally with `docker build --platform linux/amd64 -f recovery_agent/Dockerfile backend/`. Base image is `public.ecr.aws/lambda/python:3.12`.
+- `RecoveryAgentFunction` builds `backend/recovery_agent/Dockerfile` with context `backend/`, tag `v1`, platform `linux/amd64` (all functions are x86_64 so no QEMU emulation is needed on x86 laptops). Base image is `public.ecr.aws/lambda/python:3.12`. `make image-check` builds it locally and runs `infra/image_check.py`, which fails if the image is not `linux/amd64` or is a multi-manifest OCI index (buildx attestations), which Lambda rejects; the Makefile exports `BUILDX_NO_DEFAULT_ATTESTATIONS=1` for every image build, the manual equivalent is `DOCKER_BUILDKIT=1 docker build --provenance=false --sbom=false`.
 
 ## Web Push (VAPID)
 
@@ -93,9 +107,9 @@ Only the public key is a stack parameter (it is also served by `GET /push/public
 
 ## Contracts the state machines assume from the backend
 
-- `ladder-task` payload: `{kind, rung?, assigneeRole, circleId, parentSub?, caseId?, reason?, wait, taskToken?, attempt?, reminder?, escalation?}`. `wait:true` states use `.waitForTaskToken`; `wait:false` states (rung 4 emergency, 1930 / NCRP escalations, confirm-fields reminder) are plain invokes and the task is informational.
+- `ladder-task` payload: `{kind, rung?, assigneeRole, circleId, parentSub?, caseId?, reason?, wait, taskToken?, executionArn?, attempt?, reminder?, escalation?}`. The four Ladder rungs pass `executionArn` (`$$.Execution.Id`) so the backend can store the running ladder ARN and `StopExecution` it on check-in. `wait:true` states use `.waitForTaskToken`; `wait:false` states (rung 4 emergency, 1930 / NCRP escalations, confirm-fields reminder) are plain invokes and the task is informational.
 - `ladder-status` payload: `{ladderState: watching|escalated|ok, closeOpenTasks: bool, circleId, parentSub, reason}`.
-- `watch-check` payload `{circleId, parentSub, startedAt, deadline}` -> `{checkedIn: bool, holidayMode: bool}`.
+- `watch-check` payload `{circleId, parentSub, startedAt, sinceTs, deadline}` -> `{checkedIn: bool, holidayMode: bool}` (a CHECKIN with `ts >= sinceTs` counts; `startedAt` is kept for older executions).
 - `recovery-agent` payload `{action: extract|build|mrm|finalize|fail, circleId, caseId, error?}`; `mrm` must return `{eligible, firRequired, checklist}` in the Lambda result (the Choice reads `$.mrm.Payload.eligible`). The agent reads confirmed transactions and the NCRP ack number from the CASE item, so `POST /tasks/{id}/complete` must persist `txns` / `ackNo` there before calling `SendTaskSuccess`.
 - Task outcomes read by Choice states: ladder rungs `outcome == "reached"`; `Call1930` `outcome == "done"`; everything else is treated as "move to the next rung / escalate".
 
