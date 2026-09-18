@@ -171,18 +171,16 @@ def draft_narrative(confirmed_txns: List[Dict[str, Any]], victim: str, hint: str
             log.warning("draft_narrative attempt %d failed: %s", attempt + 1, exc)
             continue
         ok, reasons = rules.ncrp_narrative_ok(candidate)
-        if ok and _mentions_all_utrs(candidate, confirmed_txns):
+        consistent, why = rules.narrative_consistent(candidate, confirmed_txns)
+        if ok and consistent:
             narrative, source = candidate, "model"
             break
-        log.info("narrative attempt %d rejected: %s", attempt + 1, reasons or ["missing_utr"])
+        # a foreign reference/amount (hallucinated or injected) is never shown to the guardian
+        log.info("narrative attempt %d rejected: %s", attempt + 1, reasons + why)
     if narrative is None:
         narrative = templates.ncrp_template_narrative({"victimName": victim, "narrativeHint": hint}, confirmed_txns)
     _RUN["narrative"] = {"text": narrative, "source": source}
     return {"narrative": narrative, "length": len(narrative), "source": source}
-
-
-def _mentions_all_utrs(text: str, txns: List[Dict[str, Any]]) -> bool:
-    return all(str(t.get("utr", "")) in text for t in txns if t.get("utr"))
 
 
 TOOLS = [extract_transactions, validate_fields, lookup_ezero_threshold, mrm_eligibility, draft_narrative]
@@ -228,12 +226,10 @@ def save_case(circle_id: str, case_id: str, attrs: Dict[str, Any]) -> None:
     db.set_attributes(pk, sk, attrs)
 
 
-def confirmed_or_valid(case: Dict[str, Any]) -> List[Dict[str, Any]]:
-    confirmed = case.get("confirmedTxns") or []
-    if confirmed:
-        return [t for t in confirmed if isinstance(t, dict)]
-    extracted = (case.get("extracted") or {}).get("txns") or []
-    return [t for t in extracted if isinstance(t, dict) and t.get("valid")]
+def confirmed_txns(case: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Only the rows a guardian confirmed (``confirmedTxns`` on the CASE). The model's own
+    extraction is never used for the narrative, the script or the MRM decision."""
+    return [t for t in (case.get("confirmedTxns") or []) if isinstance(t, dict)]
 
 
 # --- entry points ----------------------------------------------------------------------
@@ -260,7 +256,7 @@ def run_build(circle_id: str, case_id: str) -> Dict[str, Any]:
     """Templates + LLM narrative -> ``artifacts``; status ``awaiting_1930``."""
     case = load_case(circle_id, case_id)
     save_case(circle_id, case_id, {"status": "building"})
-    txns = confirmed_or_valid(case)
+    txns = confirmed_txns(case)
     victim = case.get("victimName") or "the complainant"
     hint = case.get("narrativeHint") or ""
     _reset_run()
@@ -270,9 +266,11 @@ def run_build(circle_id: str, case_id: str) -> Dict[str, Any]:
         draft_narrative(txns, victim, hint)
     narrative = _RUN.get("narrative") or {}
     text = narrative.get("text") or templates.ncrp_template_narrative(case, txns)
-    ok, _ = rules.ncrp_narrative_ok(text)
-    if not ok:
+    narrative_source = narrative.get("source", "template")
+    # belt and braces: re-verify against the DB rows before anything is stored
+    if not rules.ncrp_narrative_ok(text)[0] or not rules.narrative_consistent(text, txns)[0]:
         text = templates.ncrp_template_narrative(case, txns)
+        narrative_source = "template"
     mrm = rules.mrm_eligibility(txns)
     script = templates.script_1930(case, txns)
     artifacts = {
@@ -281,7 +279,7 @@ def run_build(circle_id: str, case_id: str) -> Dict[str, Any]:
         "script1930Hi": script["hi"],
         "ncrpNarrative": text,
         "ncrpNarrativeLength": len(text),
-        "ncrpNarrativeSource": narrative.get("source", "template"),
+        "ncrpNarrativeSource": narrative_source,
         "freezeLetter": templates.freeze_letter(case, txns),
         "ezeroFir": rules.lookup_ezero_threshold(case.get("state")),
         "mrm": mrm,
@@ -294,7 +292,7 @@ def run_build(circle_id: str, case_id: str) -> Dict[str, Any]:
 
 def run_mrm(circle_id: str, case_id: str) -> Dict[str, Any]:
     case = load_case(circle_id, case_id)
-    mrm = rules.mrm_eligibility(confirmed_or_valid(case), (case.get("frozenAmountByAccount") or None))
+    mrm = rules.mrm_eligibility(confirmed_txns(case), (case.get("frozenAmountByAccount") or None))
     artifacts = {**(case.get("artifacts") or {}), "mrm": mrm, "mrmChecklist": templates.mrm_checklist(case, mrm)}
     save_case(circle_id, case_id, {"artifacts": artifacts, "status": "mrm"})
     return {"eligible": mrm["eligible"], "firRequired": mrm["firRequired"], "checklist": mrm["checklist"]}

@@ -108,3 +108,45 @@ def test_extract_error_marks_case_and_raises(case, bedrock_fake):
 def test_strands_flag_is_false_in_tests():
     # tests run without strands; the deterministic path is what was exercised above
     assert agent.STRANDS_AVAILABLE in (True, False)
+
+
+def test_build_rejects_narrative_with_foreign_utr(case, bedrock_fake):
+    """A fake model that injects a UTR not in confirmedTxns: the template narrative wins."""
+    db.set_attributes("CIRCLE#%s" % case["circleId"], "CASE#%s" % case["caseId"], {"confirmedTxns": [TXN]})
+    bogus = ("On 17 September 2026 Ramesh Kumar received a video call from a person claiming to be a CBI officer. "
+             "Rs 60000 was sent to fraud at ybl with UTR 123456789012 through PhonePe and a further Rs 60000 with "
+             "UTR 999999999999. The complainant requests that the accounts be frozen and the money returned.")
+    bedrock_fake.tool_input = {"narrative": bogus}
+    app.handler({"action": "build", "circleId": case["circleId"], "caseId": case["caseId"]}, None)
+    art = _get(case)["artifacts"]
+    assert len(bedrock_fake.calls) == 2  # retried once, both rejected
+    assert art["ncrpNarrativeSource"] == "template"
+    assert "999999999999" not in art["ncrpNarrative"] and "123456789012" in art["ncrpNarrative"]
+    assert rules.ncrp_narrative_ok(art["ncrpNarrative"])[0]
+    assert art["ncrp"]["source"]["url"] == "https://cybercrime.gov.in/Webform/Crime_AuthoLogin.aspx"
+    assert art["ezeroFir"]["source"]["outlet"] == "Hindustan Times" and art["mrm"]["source"]["outlet"] == "Deccan Chronicle"
+
+
+def test_build_rejects_narrative_with_foreign_amount(case, bedrock_fake):
+    db.set_attributes("CIRCLE#%s" % case["circleId"], "CASE#%s" % case["caseId"], {"confirmedTxns": [TXN]})
+    wrong = ("On 17 September 2026 Ramesh Kumar received a video call from a person claiming to be a CBI officer. "
+             "He was told to transfer money for verification. Rs 6,00,000 was sent to fraud at ybl with UTR "
+             "123456789012 through PhonePe. The complainant requests that the accounts be frozen and the money returned.")
+    bedrock_fake.tool_input = {"narrative": wrong}
+    app.handler({"action": "build", "circleId": case["circleId"], "caseId": case["caseId"]}, None)
+    art = _get(case)["artifacts"]
+    assert art["ncrpNarrativeSource"] == "template" and "6,00,000" not in art["ncrpNarrative"]
+
+
+def test_build_never_uses_model_extraction_when_nothing_confirmed(case, bedrock_fake):
+    """extracted rows exist but confirmedTxns is empty: none of the extracted UTRs may appear."""
+    db.set_attributes("CIRCLE#%s" % case["circleId"], "CASE#%s" % case["caseId"],
+                      {"confirmedTxns": [], "extracted": {"txns": [{**TXN, "valid": True, "issues": []}]}})
+    bedrock_fake.tool_input = {"narrative": "Ramesh Kumar was cheated. " * 12}
+    app.handler({"action": "build", "circleId": case["circleId"], "caseId": case["caseId"]}, None)
+    art = _get(case)["artifacts"]
+    assert "123456789012" not in art["ncrpNarrative"] and "123456789012" not in art["script1930"]
+    assert "123456789012" not in art["freezeLetter"]
+    prompt = bedrock_fake.calls[0]["messages"][0]["content"][1]["text"]
+    assert "123456789012" not in prompt
+    assert art["mrm"]["eligible"] is False
