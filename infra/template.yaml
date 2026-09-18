@@ -578,6 +578,13 @@ Resources:
               Ref: HttpApi
             Path: /demo/config
             Method: GET
+        PostDemoReset:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: HttpApi
+            Path: /demo/reset
+            Method: POST
 
   # -------------------------------------------------------------------------------------------
   # Lambda: classifier worker (async, Bedrock Converse with tool-use)
