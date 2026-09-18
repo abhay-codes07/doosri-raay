@@ -1,5 +1,5 @@
 {
-  "Comment": "Doosri Raay Watch: one execution per parent per deadline. Waits until $.deadline, checks for a CHECKIN item written after $.startedAt (or holidayMode), and starts the Ladder asynchronously if none exists. Input: {circleId, parentSub, deadline, startedAt, timeouts:{rung}}.",
+  "Comment": "Doosri Raay Watch: one execution per parent per deadline. Waits until $.deadline, checks for a CHECKIN item written after $.sinceTs (ISO; $.startedAt is kept for older executions) or holidayMode, and starts the Ladder asynchronously if none exists. Input: {circleId, parentSub, deadline, startedAt, sinceTs, timeouts:{rung}}.",
   "StartAt": "WaitForDeadline",
   "States": {
     "WaitForDeadline": {
@@ -16,6 +16,7 @@
           "circleId.$": "$.circleId",
           "parentSub.$": "$.parentSub",
           "startedAt.$": "$.startedAt",
+          "sinceTs.$": "$.sinceTs",
           "deadline.$": "$.deadline"
         }
       },
