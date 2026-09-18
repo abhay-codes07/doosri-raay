@@ -8,6 +8,7 @@ import thoughts from '../data/thoughts.json';
 import { useProfile } from '../hooks/useProfile';
 import { Bi, LangProvider, useT } from '../i18n/LangContext';
 import { dayOfYearIST, formatDateEn, formatDateHi, istDateString } from '../lib/dates';
+import { retryInBackground, sosLocation, startPositionWatch } from '../lib/geo';
 import { moonEmoji, tithiForIstDay, vikramSamvat } from '../lib/panchang';
 import { normalizeMedicines } from '../lib/medicines';
 import { KEYS, readJson, readString, writeJson, writeString } from '../lib/storage';
@@ -71,23 +72,20 @@ function ParentTile({ embedded, onSignOut }: { embedded: boolean; onSignOut?: ()
   }, [api, identity, profile]);
 
   // ---- covert SOS: triple tap on the date ----
+  // Permission was asked during onboarding; here we only keep a background watch so the SOS can
+  // go out at once with the last known fix. Nothing on screen changes except a 200 ms flicker.
+  useEffect(() => {
+    if (!profile || profile.role !== 'parent') return undefined;
+    return startPositionWatch();
+  }, [profile]);
   const taps = useRef<number[]>([]);
   const [flick, setFlick] = useState(false);
   const sendSos = useCallback(() => {
     setFlick(true);
     window.setTimeout(() => setFlick(false), 200);
-    const post = (lat: number, lon: number, accuracy: number) => {
-      api.sos({ lat, lon, accuracy }).catch(() => undefined);
-    };
-    if (!('geolocation' in navigator)) {
-      post(0, 0, -1);
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => post(pos.coords.latitude, pos.coords.longitude, Math.round(pos.coords.accuracy)),
-      () => post(0, 0, -1),
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 },
-    );
+    const loc = sosLocation();
+    // fire immediately; retry up to 3 times with backoff, silently
+    void retryInBackground(() => api.sos(loc), 3);
   }, [api]);
   const onDateTap = () => {
     const nowMs = Date.now();

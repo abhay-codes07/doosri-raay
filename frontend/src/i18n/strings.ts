@@ -89,6 +89,23 @@ export const S = {
   crashTitle: { hi: 'कुछ गड़बड़ हुई, दोबारा खोलें', en: 'Kuch gadbad hui, dobara kholein — something went wrong, please reopen' },
   crashBody: { hi: 'चिंता की बात नहीं। नीचे का बटन दबाएँ।', en: 'Nothing to worry about. Tap the button below.' },
   reload: { hi: 'दोबारा खोलें', en: 'Reopen' },
+  geoTitle: { hi: 'आपकी जगह (location)', en: 'Your location' },
+  geoWhy: {
+    hi: 'आपके परिवार को ज़रूरत पड़ने पर आपकी जगह पता चल सके।',
+    en: 'Aapke parivaar ko zaroorat padne par aapki jagah pata chal sake — so your family can find you if ever needed.',
+  },
+  geoNever: {
+    hi: 'यह अनुमति सिर्फ़ अभी एक बार माँगी जाती है। ऐप कभी बीच में नहीं पूछेगा।',
+    en: 'Asked only once, now. The app will never interrupt you with this later.',
+  },
+  geoAllow: { hi: 'जगह की अनुमति दें', en: 'Allow location' },
+  geoLater: { hi: 'अभी नहीं', en: 'Not now' },
+  geoGranted: { hi: 'धन्यवाद, अनुमति मिल गई।', en: 'Thank you, permission granted.' },
+  geoDenied: {
+    hi: 'अनुमति नहीं मिली। फ़ोन की settings से बाद में दे सकते हैं।',
+    en: 'Permission was not given. It can be enabled later from the phone settings.',
+  },
+  geoUnavailable: { hi: 'इस फ़ोन पर जगह अभी नहीं मिल पाई।', en: 'Location is not available on this phone right now.' },
   pactTitle: { hi: 'परिवार का वादा', en: 'The family pact' },
   pactText: {
     hi: 'अगर कोई मुझसे कहे कि परिवार से बात न करूँ, या "verification" के लिए पैसे भेजूँ, तो मेरा परिवार तुरंत जान जाएगा।',

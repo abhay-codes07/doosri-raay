@@ -7,11 +7,12 @@ import { Spinner } from '../components/ui';
 import { INDIAN_STATES } from '../data/states';
 import { Bi, useLang, useT } from '../i18n/LangContext';
 import type { Lang } from '../i18n/strings';
+import { requestGeoPermission, type GeoPermission } from '../lib/geo';
 import { normalizeMedicines } from '../lib/medicines';
 import { KEYS, writeString } from '../lib/storage';
 import { useSession } from '../session';
 
-type Step = 'circle' | 'join' | 'created' | 'profile' | 'pact' | 'done';
+type Step = 'circle' | 'join' | 'created' | 'profile' | 'location' | 'pact' | 'done';
 
 export function OnboardingPage() {
   const api = useApi();
@@ -43,6 +44,7 @@ export function OnboardingPage() {
   const [codeWord, setCodeWord] = useState(p.codeWord ?? '');
   const [medicines, setMedicines] = useState<Medicine[]>(() => normalizeMedicines(p.medicines));
   const [pactAnswer, setPactAnswer] = useState<'yes' | 'no' | null>(null);
+  const [geo, setGeo] = useState<GeoPermission | 'asking' | null>(null);
 
   const isParent = role === 'parent';
 
@@ -98,13 +100,22 @@ export function OnboardingPage() {
     try {
       await api.updateProfile(input);
       setLang(lang);
-      setStep(editing ? 'done' : 'pact');
+      // parents are asked for location now, never at SOS time
+      setStep(isParent ? 'location' : editing ? 'done' : 'pact');
       if (editing) await session.reload();
     } catch (err) {
       setError(describeError(err));
     } finally {
       setBusy(false);
     }
+  };
+
+  const afterLocation = () => setStep(editing ? 'done' : 'pact');
+
+  const askLocation = async () => {
+    setGeo('asking');
+    const r = await requestGeoPermission();
+    setGeo(r);
   };
 
   const acceptPact = async () => {
@@ -295,6 +306,45 @@ export function OnboardingPage() {
             {busy ? <Spinner label={t('saving')} /> : t('next')}
           </button>
         </form>
+      )}
+
+      {step === 'location' && (
+        <section className="card" aria-labelledby="loc-title">
+          <h2 id="loc-title">
+            <Bi k="geoTitle" />
+          </h2>
+          <p style={{ fontSize: '1.15em' }}>
+            <Bi k="geoWhy" />
+          </p>
+          <p className="muted">
+            <Bi k="geoNever" />
+          </p>
+          {geo === 'granted' && (
+            <p className="alert mt" role="status">
+              <Bi k="geoGranted" />
+            </p>
+          )}
+          {geo === 'denied' && (
+            <p className="alert mt" role="status">
+              <Bi k="geoDenied" />
+            </p>
+          )}
+          {geo === 'unavailable' && (
+            <p className="alert mt" role="status">
+              <Bi k="geoUnavailable" />
+            </p>
+          )}
+          <div className="task-actions">
+            {geo !== 'granted' && (
+              <button type="button" className="btn btn-primary btn-big" disabled={geo === 'asking'} onClick={() => void askLocation()}>
+                {geo === 'asking' ? <Spinner label={t('loading')} /> : <Bi k="geoAllow" />}
+              </button>
+            )}
+            <button type="button" className={`btn btn-big ${geo === 'granted' ? 'btn-primary' : ''}`} onClick={afterLocation}>
+              <Bi k={geo === 'granted' ? 'next' : 'geoLater'} />
+            </button>
+          </div>
+        </section>
       )}
 
       {step === 'pact' && (
