@@ -112,7 +112,8 @@ def extract_transactions(object_key: str) -> Dict[str, Any]:
 
 @tool
 def validate_fields(txns: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Validate transactions: UTR 12 digits, amount 1..1e8, parseable timestamp, non-empty payee.
+    """Validate transactions: reference 12-digit UTR (UPI/IMPS) or 16-22 alphanumeric NEFT/RTGS, amount 1..1e8,
+    parseable timestamp, non-empty payee.
 
     Args:
         txns: list of {utr, amount, payee, timestamp, app}.
@@ -284,6 +285,7 @@ def run_build(circle_id: str, case_id: str) -> Dict[str, Any]:
         "freezeLetter": templates.freeze_letter(case, txns),
         "ezeroFir": rules.lookup_ezero_threshold(case.get("state")),
         "mrm": mrm,
+        "ncrp": rules.ncrp_facts(),
         "mrmChecklist": templates.mrm_checklist(case, mrm),
     }
     save_case(circle_id, case_id, {"artifacts": artifacts, "status": "awaiting_1930"})

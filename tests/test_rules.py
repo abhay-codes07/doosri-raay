@@ -11,12 +11,45 @@ GOOD = {"utr": "123456789012", "amount": 50000, "payee": "xyz@ybl", "timestamp":
 def test_validate_fields_good():
     out = rules.validate_fields([GOOD])
     assert out[0]["valid"] is True and out[0]["issues"] == [] and out[0]["amount"] == 50000
+    assert out[0]["rail"] == "upi_imps"
+
+
+@pytest.mark.parametrize("ref,expected", [
+    ("SBIN526012345678", "SBIN526012345678"),          # 16
+    ("hdfcn52026091812345678", "HDFCN52026091812345678"),  # 22, upper-cased
+    (" utibr52026091812345 ", "UTIBR52026091812345"),  # 19, trimmed
+    ("1234567890123456", "1234567890123456"),          # 16 digits is a NEFT/RTGS reference, not a UTR
+])
+def test_neft_rtgs_references(ref, expected):
+    out = rules.validate_fields([{**GOOD, "utr": ref}])
+    assert out[0]["valid"] is True and out[0]["rail"] == "neft_rtgs" and out[0]["utr"] == expected
+
+
+@pytest.mark.parametrize("ref", ["SBIN5260123456", "A" * 23, "SBIN-526012345678", "sbin 526012345678"])
+def test_neft_rtgs_rejects_wrong_length_or_characters(ref):
+    out = rules.validate_fields([{**GOOD, "utr": ref}])
+    assert out[0]["valid"] is False and out[0]["rail"] == "unknown" and "utr_invalid" in out[0]["issues"]
+
+
+def test_describe_issues_lists_rows_one_based():
+    validated = rules.validate_fields([GOOD, {**GOOD, "utr": "x", "payee": ""}, {**GOOD, "amount": 0}])
+    text = rules.describe_issues(validated)
+    assert text.startswith("Row 2: utr_invalid (") and "payee_missing" in text and "Row 3: amount_out_of_range" in text
+    assert "Row 1" not in text
+
+
+def test_validate_ack():
+    assert rules.validate_ack(" 32901234567890 ") == ("32901234567890", None)
+    assert rules.validate_ack("12901234567890") == ("12901234567890", rules.ACK_WARNING)
+    assert rules.ACK_WARNING == "Ack numbers reported in the press start with 329; double-check"
+    for bad in ("", None, "3290123456789", "329012345678901", "3290123456789a"):
+        assert rules.validate_ack(bad) == (None, None), bad
 
 
 @pytest.mark.parametrize("utr", ["", "12345678901", "1234567890123", "12345678901a", "ABC", None])
 def test_utr_regex(utr):
     out = rules.validate_fields([{**GOOD, "utr": utr}])
-    assert out[0]["valid"] is False and "utr_invalid" in out[0]["issues"]
+    assert out[0]["valid"] is False and "utr_invalid" in out[0]["issues"] and out[0]["rail"] == "unknown"
 
 
 @pytest.mark.parametrize("amount,issue", [
@@ -61,6 +94,47 @@ def test_ezero_thresholds():
     for s in ("Haryana", "Punjab"):
         assert rules.lookup_ezero_threshold(s)["sourceUrl"].startswith("https://")
     assert rules.lookup_ezero_threshold(None)["thresholdInr"] is None
+
+
+def test_ezero_sources_and_caveats():
+    hr = rules.lookup_ezero_threshold("Haryana")
+    assert hr["source"] == {"outlet": "Hindustan Times", "date": "25 Jun 2026",
+                            "url": "https://www.hindustantimes.com/cities/chandigarh-news/haryana-to-lodge-e-zero-fir-in-cyber-financial-fraud-cases-101782412687221.html"}
+    assert hr["caveat"] == "Reported by Hindustan Times on 25 Jun 2026; confirm with 1930 before relying on it"
+    assert hr["comparison"] == ">=" and "Rs 100,000 or more" in hr["note"]
+    rj = rules.lookup_ezero_threshold("Rajasthan")
+    assert rj["source"]["outlet"] == "Times of India" and rj["source"]["date"] == "23 Jul 2026"
+    assert "timesofindia" in rj["source"]["url"] and rj["comparison"] == ">="
+    pb = rules.lookup_ezero_threshold("Punjab")
+    assert pb["source"]["outlet"] == "New Indian Express" and pb["source"]["date"] == "29 Jul 2026"
+    assert pb["comparison"] == ">" and "more than Rs 500,000" in pb["note"]
+    other = rules.lookup_ezero_threshold("Kerala")
+    assert other["source"]["outlet"] == "New Indian Express" and other["source"]["date"] == "4 Aug 2026"
+    assert other["source"]["url"].endswith("sc-issues-13-point-directions-to-fight-digital-arrest-scams")
+    assert other["caveat"] == "Reported by New Indian Express on 4 Aug 2026; confirm with 1930 before relying on it"
+    for entry in (hr, rj, pb, other):
+        assert entry["scDirection"]["text"] == (
+            "Supreme Court directed all States/UTs to adopt e-Zero FIR (13-point directions, 4 Aug 2026)")
+        assert entry["scDirection"]["source"]["url"].startswith("https://www.newindianexpress.com/india/2026/Aug/04/")
+        assert entry["sourceUrl"] == entry["source"]["url"]
+
+
+def test_mrm_and_ncrp_sources():
+    mrm = rules.mrm_eligibility([GOOD])
+    assert mrm["source"]["outlet"] == "Deccan Chronicle" and "deccanchronicle.com" in mrm["source"]["url"]
+    assert [s["outlet"] for s in mrm["sources"]] == ["Deccan Chronicle", "Free Press Journal"]
+    assert "freepressjournal.in" in mrm["sources"][1]["url"]
+    assert mrm["caveat"] == "Reported by Deccan Chronicle; confirm with 1930 before relying on it"
+    assert mrm["portal"] == "https://mrm-ncrp.mha.gov.in"
+    assert "indemnity bond" in rules.mrm_eligibility([{**GOOD, "amount": 50000}])["rule"]
+    ncrp = rules.ncrp_facts()
+    assert ncrp["rules"] == {"narrativeMinChars": 200, "narrativeNoSpecialCharacters": True, "transactionIdDigits": 12,
+                             "idUploadRequired": True, "ackDigits": 14, "ackPrefix": "329"}
+    assert ncrp["source"]["url"] == "https://cybercrime.gov.in/Webform/Crime_AuthoLogin.aspx"
+    assert ncrp["ackSource"]["outlet"] == "The Hindu (Chennai)" and "thehindu.com" in ncrp["ackSource"]["url"]
+    assert ncrp["caveat"].startswith("Reported by The Hindu (Chennai); confirm with 1930")
+    for src in (mrm["source"], ncrp["source"], ncrp["ackSource"]):
+        assert set(src) == {"outlet", "date", "url"}
 
 
 def test_mrm_single_account_over_50k_requires_fir():
