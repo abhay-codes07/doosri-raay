@@ -296,8 +296,9 @@ messages), so a larger eval is roadmap.
   code and rendered as text, never HTML. The eval contains two injection probes and a screenshot probe.
 - **Validated UTRs, nothing auto-filed.** Extracted transactions must pass a 12-digit UTR regex, an amount range
   and a parseable timestamp, and the user confirms each field beside the image. The NCRP acknowledgement number
-  must match `^329\d{11}$`. No form is submitted on anyone's behalf; there are no public APIs for 1930, NCRP,
-  MRM or Chakshu, so we ship copy-to-clipboard and deep links and say so.
+  must match `^329\d{11}$` (enforced by the API in `backend/api/handlers/tasks.py`; the UI shows a non-blocking
+  warning first). No form is submitted on anyone's behalf; there are no public APIs for 1930, NCRP or MRM, so we
+  ship `tel:1930`, portal deep links and copy-to-clipboard and say so.
 - **The guardian is notification-only.** No account access, no balances, no credentials, ever. This follows the
   Singapore CPF trusted-contact model and the evidence that informal helpers who hold credentials become a
   risk themselves (Latulipe, CHI 2022/2025).
