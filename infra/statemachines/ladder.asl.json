@@ -1,5 +1,5 @@
 {
-  "Comment": "Doosri Raay Ladder: outsider escalation. Rung 1 guardian1 -> (watching) -> rung 2 guardian2 -> rung 3 neighbour via guardian1 -> rung 4 call 112. Every human rung is a ladder-task Lambda with .waitForTaskToken and TimeoutSecondsPath $.timeouts.rung; a timeout moves to the next rung. Input: {circleId, parentSub, reason: missed_checkin|sos, timeouts:{rung}}.",
+  "Comment": "Doosri Raay Ladder: outsider escalation. Rung 1 guardian1 -> (watching) -> rung 2 guardian2 -> rung 3 neighbour via guardian1 -> rung 4 call 112. Every human rung is a ladder-task Lambda with .waitForTaskToken and TimeoutSecondsPath $.timeouts.rung; a timeout moves to the next rung. Every ladder-task Payload carries executionArn ($$.Execution.Id) so the backend can store the running ladder ARN on the MEMBER item and StopExecution on check-in. Input: {circleId, parentSub, reason: missed_checkin|sos, timeouts:{rung}}.",
   "StartAt": "Rung1GuardianCall",
   "States": {
     "Rung1GuardianCall": {
@@ -14,6 +14,7 @@
           "circleId.$": "$.circleId",
           "parentSub.$": "$.parentSub",
           "reason.$": "$.reason",
+          "executionArn.$": "$$.Execution.Id",
           "wait": true,
           "taskToken.$": "$$.Task.Token"
         }
@@ -103,6 +104,7 @@
           "circleId.$": "$.circleId",
           "parentSub.$": "$.parentSub",
           "reason.$": "$.reason",
+          "executionArn.$": "$$.Execution.Id",
           "wait": true,
           "taskToken.$": "$$.Task.Token"
         }
@@ -162,6 +164,7 @@
           "circleId.$": "$.circleId",
           "parentSub.$": "$.parentSub",
           "reason.$": "$.reason",
+          "executionArn.$": "$$.Execution.Id",
           "wait": true,
           "taskToken.$": "$$.Task.Token"
         }
@@ -221,6 +224,7 @@
           "circleId.$": "$.circleId",
           "parentSub.$": "$.parentSub",
           "reason.$": "$.reason",
+          "executionArn.$": "$$.Execution.Id",
           "wait": false
         }
       },
