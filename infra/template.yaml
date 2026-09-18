@@ -568,8 +568,15 @@ Resources:
       CodeUri: ../backend/
       Handler: classify_worker.app.handler
       Runtime: python3.12
-      Timeout: 60
+      Timeout: 120
       MemorySize: 1024
+      # The API invokes this function asynchronously (Event). Lambda's default async policy would
+      # retry a failed / timed-out invocation twice more and queue events for up to 6 hours, so one
+      # slow Bedrock call could become three 120-second bills and a stale classification. No retries,
+      # and events older than 60 s are dropped (the report stays "pending" and the UI re-polls).
+      EventInvokeConfig:
+        MaximumRetryAttempts: 0
+        MaximumEventAgeInSeconds: 60
       Environment:
         Variables:
           TABLE_NAME:
