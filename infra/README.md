@@ -11,7 +11,7 @@ Everything in this folder is deployed by one AWS SAM stack (`infra/template.yaml
 | Lambda | `ApiFunction`, `ClassifyWorkerFunction`, `LadderTaskFunction`, `WatchCheckFunction`, `LadderStatusFunction` (zip, python3.12, x86_64) and `RecoveryAgentFunction` (container image, Strands) |
 | Step Functions (Standard) | `WatchStateMachine`, `LadderStateMachine`, `RecoveryStateMachine` from `infra/statemachines/*.asl.json`, logging level ERROR without execution data (task tokens / transactions stay out of CloudWatch), 14-day log groups |
 | SSM parameter | `/doosriraay/<stack>/vapid-private-key` placeholder (see VAPID below) |
-| AWS Budgets | USD 20 and USD 50 monthly ACTUAL-cost alerts, created only when `BudgetEmail` is set |
+| AWS Budgets | USD 20 and USD 50 monthly ACTUAL-cost alerts, created only when `BudgetEmail` is set. **Set it or you have no cost alarm.** |
 
 The template uses only long-form intrinsics (`Fn::Sub`, `Ref`, `Fn::GetAtt`) so plain YAML parsers and `infra/validate_asl.py` can read it.
 
@@ -36,7 +36,7 @@ First time without a `samconfig.toml`: `make deploy-guided` walks through stack 
 
 Override parameters on the fly: `make deploy PARAMS='AppOrigins=https://main.d1234.amplifyapp.com,http://localhost:5173 BudgetEmail=team@example.com'` (a CommaDelimitedList parameter is passed as one comma-separated value, no spaces).
 
-Stack parameters (all have defaults): `AppOrigins` (comma-separated list), `ModelId`, `FallbackModelId`, `BedrockRegion`, `DemoTimeouts` (0/1), `DemoSeedEnabled` (0/1, default 0), `DailyQuota`, `UploadMaxBytes`, `VapidPublicKey`, `VapidSubject`, `BudgetEmail`, `PollyVoiceId`.
+Stack parameters (all have defaults): `AppOrigins` (comma-separated list), `ModelId`, `FallbackModelId`, `BedrockRegion`, `DemoTimeouts` (0/1), `DemoSeedEnabled` (0/1, default 0), `DailyQuota`, `UploadMaxBytes`, `VapidPublicKey`, `VapidSubject`, `BudgetEmail`, `PollyVoiceId`. `BudgetEmail` is technically optional but treat it as required: **set it or you have no cost alarm** (the two AWS Budgets are only created when it is non-empty).
 
 Build notes:
 - All zip functions share `CodeUri: ../backend/` and one `backend/requirements.txt` on purpose (one build, one layer of deps).
@@ -105,7 +105,7 @@ Only the public key is a stack parameter (it is also served by `GET /push/public
 - Per-user daily LLM quota `DailyQuota` (default 30) enforced in the API on `/analyze`, `/cases`, `/puchho`.
 - Presigned POST capped at `UploadMaxBytes` (default 3.5 MB), `image/*` only; screenshots expire after 7 days.
 - Bedrock `max_tokens` capped in code; Haiku fallback on throttling.
-- AWS Budgets: pass `BudgetEmail=you@example.com` to create the USD 20 and USD 50 monthly alerts (confirm the SNS/e-mail subscription that AWS sends). Budgets is a global service; the resources are created from ap-south-1 without any extra setup.
+- AWS Budgets: pass `BudgetEmail=you@example.com` to create the USD 20 and USD 50 monthly alerts (confirm the e-mail subscription that AWS sends). **Set it or you have no cost alarm** - with an empty `BudgetEmail` the `HasBudgetEmail` condition is false and neither budget exists; `samconfig.example.toml` ships with a placeholder address for that reason. Budgets is a global service; the resources are created from ap-south-1 without any extra setup.
 - Standard Step Functions executions cost per transition, not per second of waiting, so a 24 h `Wait` is effectively free. Log groups keep 14 days.
 
 ## Teardown
