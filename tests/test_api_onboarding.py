@@ -26,10 +26,13 @@ def test_profile_create_and_get(api):
     status, body = api("POST", "/profile", "u1", {
         "name": "Priya", "lang": "en", "city": "Pune", "state": "Maharashtra", "phone": "+91",
         "checkinHourIST": 9, "holidayMode": True, "neighbour": {"name": "S", "phone": "1", "address": "A", "evil": "x"},
-        "codeWord": "gulab jamun", "medicines": [{"name": "Metformin", "time": "08:00"}], "photoKey": "photos/x.jpg",
+        "codeWord": "gulab jamun", "medicines": [{"name": "Metformin", "time": "08:00"}],
         "role": "parent", "circleId": "hacked", "pushSub": {"endpoint": "x"},
     })
     assert status == 200, body
+    # photoKey needs a circle and must live under photos/<own circleId>/
+    status, body2 = api("POST", "/profile", "u1", {"photoKey": "photos/x.jpg"})
+    assert status == 400 and body2["error"] == "invalid_photo_key"
     profile = body["profile"]
     assert profile["name"] == "Priya" and profile["checkinHourIST"] == 9 and profile["holidayMode"] is True
     assert profile["neighbour"] == {"name": "S", "phone": "1", "address": "A"}

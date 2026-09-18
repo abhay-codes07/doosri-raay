@@ -7,11 +7,13 @@ from common import auth, aws, config, db
 from common.http import ApiError, ok
 
 EXTENSIONS = {"image/png": "png", "image/jpeg": "jpg", "image/jpg": "jpg", "image/webp": "webp", "image/gif": "gif"}
-PURPOSES = ("analyze", "case")
+PURPOSES = ("analyze", "case", "photo")
 
 
 def object_key(circle_id: str, purpose: str, content_type: str) -> str:
     ext = EXTENSIONS.get(content_type, "img")
+    if purpose == "photo":  # family photo for the Panchang tile; accepted by POST /profile photoKey
+        return "photos/%s/%s.%s" % (circle_id, db.new_id(), ext)
     return "circles/%s/%s/%s.%s" % (circle_id, purpose, db.new_id(), ext)
 
 
@@ -36,7 +38,7 @@ def post_upload(req: Any) -> Dict[str, Any]:
     if not content_type.startswith("image/"):
         raise ApiError(400, "invalid_content_type", "contentType must be image/*")
     if purpose not in PURPOSES:
-        raise ApiError(400, "invalid_purpose", "purpose must be analyze or case")
+        raise ApiError(400, "invalid_purpose", "purpose must be analyze, case or photo")
     key = object_key(circle_id, purpose, content_type)
     presigned = presign(key, content_type)
     return ok({"url": presigned["url"], "fields": presigned["fields"], "objectKey": key})

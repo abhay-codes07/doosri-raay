@@ -22,9 +22,33 @@ def test_profile_circle_members_carry_parent_status_and_photo_url(api, family):
                                                               "pactAccepted": True, "medicines": [{"name": "A", "time": "9"}]})
     assert status == 200 and body["profile"]["pactAccepted"] is True
     assert "photos/%s/today.jpg" % family["circleId"] in body["profile"]["photoUrl"]
+    assert body["profile"]["photoUrl"].startswith("https://doosriraay-test-uploads.s3.ap-south-1.amazonaws.com/")
     status, body = api("GET", "/profile", family["parent"])
     assert body["profile"]["pactAccepted"] is True and body["profile"]["medicines"] == [{"name": "A", "time": "9"}]
     assert api("POST", "/profile", family["parent"], {"pactAccepted": "yes"})[0] == 400
+
+
+def test_photo_key_is_scoped_to_the_callers_circle(api, family, other_family):
+    parent = family["parent"]
+    bad_keys = ["photos/%s/today.jpg" % other_family["circleId"], "circles/%s/analyze/x.png" % family["circleId"],
+                "photos/../%s/x.jpg" % family["circleId"], "photos/%s/../x.jpg" % family["circleId"],
+                "photos/x.jpg", "audio/i4c_hi.mp3", 12]
+    for key in bad_keys:
+        status, body = api("POST", "/profile", parent, {"photoKey": key})
+        assert status == 400 and body["error"] == "invalid_photo_key", key
+    # purpose=photo produces an acceptable key
+    status, up = api("POST", "/uploads", parent, {"contentType": "image/jpeg", "purpose": "photo"})
+    assert status == 200 and up["objectKey"].startswith("photos/%s/" % family["circleId"]) and up["objectKey"].endswith(".jpg")
+    assert up["fields"]["key"] == up["objectKey"]
+    status, body = api("POST", "/profile", parent, {"photoKey": up["objectKey"]})
+    assert status == 200 and up["objectKey"] in body["profile"]["photoUrl"]
+    # a stale/foreign key stored on the item is never signed
+    db.set_attributes("USER#%s" % parent, "PROFILE", {"photoKey": "photos/%s/x.jpg" % other_family["circleId"]})
+    status, body = api("GET", "/profile", parent)
+    assert body["profile"]["photoUrl"] is None
+    # clearing
+    status, body = api("POST", "/profile", parent, {"photoKey": None})
+    assert status == 200 and body["profile"]["photoUrl"] is None and body["profile"]["photoKey"] is None
 
 
 def test_sos_without_location(api, family):

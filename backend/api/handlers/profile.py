@@ -1,6 +1,7 @@
 """POST /profile, GET /profile."""
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, List, Optional
 
 from common import auth, aws, config, db
@@ -11,6 +12,7 @@ ALLOWED_FIELDS = (
     "neighbour", "codeWord", "medicines", "photoKey", "pactAccepted",
 )
 PHOTO_URL_TTL = 3600
+PHOTO_KEY_RE = re.compile(r"^photos/(?P<circle>[0-9a-f]{32})/[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*$")
 NEIGHBOUR_FIELDS = ("name", "phone", "address")
 MAX_STR = 300
 
@@ -39,14 +41,30 @@ def _clean_medicines(value: Any) -> List[Dict[str, str]]:
     return out
 
 
-def clean_profile_fields(body: Dict[str, Any]) -> Dict[str, Any]:
-    """Apply the allowlist and light validation."""
+def valid_photo_key(key: Any, circle_id: Optional[str]) -> bool:
+    """Only ``photos/<callerCircleId>/...`` keys are ever accepted or signed."""
+    if not circle_id or not isinstance(key, str) or ".." in key:
+        return False
+    match = PHOTO_KEY_RE.match(key)
+    return bool(match) and match.group("circle") == circle_id
+
+
+def clean_profile_fields(body: Dict[str, Any], circle_id: Optional[str] = None) -> Dict[str, Any]:
+    """Apply the allowlist and light validation. ``circle_id`` scopes ``photoKey``."""
     out: Dict[str, Any] = {}
     for field in ALLOWED_FIELDS:
         if field not in body:
             continue
         value = body[field]
-        if field == "checkinHourIST":
+        if field == "photoKey":
+            if value in (None, ""):
+                out[field] = None  # clear the photo
+            elif not valid_photo_key(value, circle_id):
+                raise ApiError(400, "invalid_photo_key",
+                               "photoKey must be a key under photos/<your circleId>/ from POST /uploads purpose=photo")
+            else:
+                out[field] = value
+        elif field == "checkinHourIST":
             if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value <= 23:
                 raise ApiError(400, "invalid_field", "checkinHourIST must be 0..23")
             out[field] = value
@@ -114,7 +132,8 @@ def photo_url(photo_key: Optional[str]) -> Optional[str]:
 
 def public_profile(profile: Dict[str, Any]) -> Dict[str, Any]:
     out = {k: v for k, v in profile.items() if k not in ("PK", "SK", "GSI1PK", "GSI1SK", "pushSub")}
-    out["photoUrl"] = photo_url(profile.get("photoKey"))
+    key = profile.get("photoKey")
+    out["photoUrl"] = photo_url(key) if valid_photo_key(key, profile.get("circleId")) else None
     return out
 
 
@@ -145,7 +164,8 @@ def circle_summary(circle_id: Optional[str]) -> Optional[Dict[str, Any]]:
 
 
 def post_profile(req: Any) -> Dict[str, Any]:
-    fields = clean_profile_fields(req.body)
+    existing = auth.load_profile(req.sub) or {}
+    fields = clean_profile_fields(req.body, existing.get("circleId"))
     profile = upsert_profile(req.sub, fields, auth.get_email(req.event))
     return ok({"profile": public_profile(profile)})
 
