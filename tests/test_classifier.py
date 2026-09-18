@@ -107,12 +107,51 @@ def test_fallback_model_on_throttling():
                                                   "global.anthropic.claude-haiku-4-5-20251001-v1:0"]
 
 
-def test_non_fallback_errors_propagate():
+def test_any_client_error_falls_back_and_double_failure_propagates():
     from botocore.exceptions import ClientError
 
-    fake = FakeBedrock(VALID, error_codes=["ValidationException"])
-    with pytest.raises(ClientError):
+    for code in ("ValidationException", "AccessDeniedException", "ModelNotReadyException", "InternalServerException"):
+        fake = FakeBedrock(VALID, error_codes=[code])
+        v = classifier.classify(text="x", client=fake)
+        assert v["modelId"] == "global.anthropic.claude-haiku-4-5-20251001-v1:0", code
+        assert len(fake.calls) == 2
+    fake = FakeBedrock(VALID, error_codes=["ValidationException", "ThrottlingException"])
+    with pytest.raises(ClientError) as info:
         classifier.classify(text="x", client=fake)
+    assert info.value.response["Error"]["Code"] == "ThrottlingException"
+
+
+def test_timeouts_and_connection_errors_fall_back():
+    from botocore.exceptions import EndpointConnectionError, ReadTimeoutError
+
+    class Flaky(FakeBedrock):
+        def __init__(self, first_error):
+            super().__init__(VALID)
+            self.first_error = first_error
+
+        def converse(self, **kwargs):
+            if len(self.calls) == 0:
+                self.calls.append(kwargs)
+                raise self.first_error
+            return super().converse(**kwargs)
+
+    for err in (ReadTimeoutError(endpoint_url="https://bedrock"), EndpointConnectionError(endpoint_url="https://bedrock")):
+        fake = Flaky(err)
+        v = classifier.classify(text="x", client=fake)
+        assert v["modelId"] == "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+        assert [c["modelId"] for c in fake.calls][-1] == "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+
+
+def test_bedrock_client_config(monkeypatch):
+    from common import aws as aws_clients
+
+    aws_clients.reset()
+    client = aws_clients.bedrock_client()
+    cfg = client.meta.config
+    assert cfg.connect_timeout == 5 and cfg.read_timeout == 45
+    assert cfg.retries["total_max_attempts"] == 2  # botocore's form of retries={"max_attempts": 1}
+    assert client.meta.region_name == "ap-south-1"
+    aws_clients.reset()
 
 
 def test_image_input_and_signature():

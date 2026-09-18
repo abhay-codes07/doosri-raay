@@ -6,7 +6,7 @@ from typing import Any, Dict
 from common import auth, db
 from common.http import ok
 
-PUBLIC_FIELDS = ("reportId", "status", "verdict", "modelId", "createdAt", "updatedAt", "error")
+PUBLIC_FIELDS = ("reportId", "status", "verdict", "modelId", "createdAt", "updatedAt", "error", "errorDetail")
 
 
 def get_report(req: Any) -> Dict[str, Any]:

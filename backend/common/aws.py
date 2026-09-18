@@ -7,8 +7,15 @@ from functools import lru_cache
 from typing import Any
 
 import boto3
+from botocore.config import Config
 
 from common import config
+
+# Presigned URLs must point at the regional virtual-hosted endpoint
+# (https://<bucket>.s3.<region>.amazonaws.com) or browsers get redirects / CORS failures.
+S3_CONFIG = Config(signature_version="s3v4", s3={"addressing_style": "virtual"})
+# One quick attempt per model: the worker has ~120 s and two models to try.
+BEDROCK_CONFIG = Config(connect_timeout=5, read_timeout=45, retries={"max_attempts": 1})
 
 
 @lru_cache(maxsize=None)
@@ -18,7 +25,7 @@ def dynamodb_resource() -> Any:
 
 @lru_cache(maxsize=None)
 def s3_client() -> Any:
-    return boto3.client("s3", region_name=config.aws_region())
+    return boto3.client("s3", region_name=config.s3_region(), config=S3_CONFIG)
 
 
 @lru_cache(maxsize=None)
@@ -43,7 +50,7 @@ def ssm_client() -> Any:
 
 @lru_cache(maxsize=None)
 def bedrock_client() -> Any:
-    return boto3.client("bedrock-runtime", region_name=config.bedrock_region())
+    return boto3.client("bedrock-runtime", region_name=config.bedrock_region(), config=BEDROCK_CONFIG)
 
 
 _GETTERS = (

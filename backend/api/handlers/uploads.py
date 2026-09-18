@@ -1,4 +1,4 @@
-"""POST /uploads -> presigned POST restricted to images <= 5 MB."""
+"""POST /uploads -> presigned POST restricted to images <= UPLOAD_MAX_BYTES (3.5 MB: Bedrock caps images at 3.75 MB)."""
 from __future__ import annotations
 
 from typing import Any, Dict
@@ -21,7 +21,7 @@ def presign(key: str, content_type: str) -> Dict[str, Any]:
         Key=key,
         Fields={"Content-Type": content_type},
         Conditions=[
-            ["content-length-range", 0, config.MAX_UPLOAD_BYTES],
+            ["content-length-range", 0, config.upload_max_bytes()],
             ["starts-with", "$Content-Type", "image/"],
         ],
         ExpiresIn=300,

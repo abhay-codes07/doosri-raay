@@ -97,7 +97,7 @@ def test_mrm_finalize_fail(case, bedrock_fake):
 
 
 def test_extract_error_marks_case_and_raises(case, bedrock_fake):
-    bedrock_fake.error_codes = ["ValidationException"]
+    bedrock_fake.error_codes = ["ValidationException", "ValidationException"]  # primary and fallback
     from botocore.exceptions import ClientError
 
     with pytest.raises(ClientError):

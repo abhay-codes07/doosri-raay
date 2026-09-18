@@ -36,6 +36,11 @@ def bedrock_region() -> str:
     return _env("BEDROCK_REGION", "ap-south-1")
 
 
+def s3_region() -> str:
+    """Region for the S3 client (presigned URLs use the regional virtual-hosted endpoint)."""
+    return _env("AWS_REGION", _env("BEDROCK_REGION", "ap-south-1"))
+
+
 def model_id() -> str:
     return _env("MODEL_ID", "global.anthropic.claude-sonnet-4-6")
 
@@ -98,5 +103,13 @@ def polly_voice_id() -> str:
     return _env("POLLY_VOICE_ID", "Kajal")
 
 
+def upload_max_bytes() -> int:
+    """Presigned POST cap. Bedrock Converse rejects images over 3.75 MB, so stay under it."""
+    try:
+        return int(_env("UPLOAD_MAX_BYTES", str(UPLOAD_MAX_BYTES_DEFAULT)))
+    except ValueError:
+        return UPLOAD_MAX_BYTES_DEFAULT
+
+
 POLLY_FALLBACK_VOICE_ID = "Aditi"
-MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+UPLOAD_MAX_BYTES_DEFAULT = 3_500_000
