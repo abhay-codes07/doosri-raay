@@ -741,6 +741,52 @@ Resources:
       DockerTag: v1
 
   # -------------------------------------------------------------------------------------------
+  # Lambda log groups: explicit so retention is 14 days (auto-created groups never expire) and
+  # `sam delete` removes them. Ref on a Serverless::Function is its (generated) name.
+  # -------------------------------------------------------------------------------------------
+  ApiFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Sub: "/aws/lambda/${ApiFunction}"
+      RetentionInDays: 14
+
+  ClassifyWorkerFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Sub: "/aws/lambda/${ClassifyWorkerFunction}"
+      RetentionInDays: 14
+
+  LadderTaskFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Sub: "/aws/lambda/${LadderTaskFunction}"
+      RetentionInDays: 14
+
+  WatchCheckFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Sub: "/aws/lambda/${WatchCheckFunction}"
+      RetentionInDays: 14
+
+  LadderStatusFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Sub: "/aws/lambda/${LadderStatusFunction}"
+      RetentionInDays: 14
+
+  RecoveryAgentFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Sub: "/aws/lambda/${RecoveryAgentFunction}"
+      RetentionInDays: 14
+
+  # -------------------------------------------------------------------------------------------
   # Step Functions (Standard) - docs/STATE_MACHINES.md
   # Vended logs go to /aws/vendedlogs/... (14-day retention). Level is ERROR with
   # IncludeExecutionData false on purpose: execution input/output carries task tokens and
