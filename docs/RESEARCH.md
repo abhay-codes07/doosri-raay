@@ -6,7 +6,7 @@ Scope: consumer scam protection for Indian families, with focus on digital arres
 
 ## 1. Headline verdict
 
-The stack "AI listens to the call → detects digital arrest → red warning → alert family → freeze UPI → one-tap 1930" is now the **median Indian hackathon submission of 2026**. GitHub repos created since 1 Jan 2025: "scam detection" 3,355; "UPI fraud" 1,620; "digital arrest" 159. Named prior art with this exact stack: Kavach (IIC 3.0), Rakshak (BunnieX 2026), SwarVed (SIH 2026, MHA track), VaaniRakshak, CallGuard, HearTrust, ScamShieldAI (ET Hackathon). None ships working Android in-call audio (Android blocks it); voice-clone claims are lab-only.
+The stack "AI listens to the call → detects digital arrest → red warning → alert family → freeze UPI → one-tap 1930" is a **common pattern among 2026 Indian hackathon submissions**. GitHub repos created since 1 Jan 2025: "scam detection" 3,355; "UPI fraud" 1,620; "digital arrest" 159. Named prior art whose READMEs describe some or all of this stack: Kavach (IIC 3.0), Rakshak (BunnieX 2026), SwarVed (SIH 2026, MHA track), VaaniRakshak, CallGuard, HearTrust, ScamShieldAI (ET Hackathon); see `docs/PRIOR_ART.md` for what each README states. Two platform facts, not judgements about those projects, are why we do not build on this stack: Android restricts third-party in-call audio, and in-the-wild voice-clone detection benchmarks are weak (section 2).
 
 The evidence says the *victim-side detector* is the wrong frame:
 - 82% of Singapore scam losses are self-authorised transfers (SPF 2025); the UK APP-fraud category (£450.7m, 2024) is entirely victim-authorised.
@@ -37,7 +37,7 @@ The evidence says the *victim-side detector* is the wrong frame:
 | UK 159 / Monzo Call Status / Banking Protocol | Unspoofable "is this really my bank" channel; branch staff call police (£61.3m prevented 2024 [unverified]) | No | Yes | — | No Indian equivalent to verify "is this really CBI/SBI" mid-call |
 | Singapore ScamShield + Project A.S.T.R.O. + CPF Trusted Contact | Police SMS-blast suspected victims (S$267.5m averted; "many victims unaware until the SMS"); CPF trusted contact gets notification copies, no account power; 1,266 in-person interventions | Yes (notification-only) | Yes (outreach) | Yes | The proven model; nothing like it exists in India for families |
 | Hiya / Resemble / Reality Defender / Pindrop | Deepfake voice detection: browser ext, API, or enterprise call centres | No | Not on phone calls | No | In-the-wild AUC drops ~48%; cross-language near chance (XMAD-Bench 2025). Route around, don't detect |
-| Kavach / Rakshak / SwarVed (hackathons) | Whisper + LLM + red overlay + family alert + mock UPI freeze + 1930 link; Kavach has PASS→CAUTION→PAUSE→KILL ladder and a "family verification challenge" | Yes | Claimed, not shipped | One-tap link | Closest prior art. Ours differs on: covert SOS, outsider escalation, recovery pipeline, deployed product |
+| Kavach / Rakshak / SwarVed (hackathons) | Per their READMEs: in-call transcription + LLM verdict, on-screen warning, family alert, transaction pause, 1930 link; Kavach's README describes a PASS→CAUTION→PAUSE→KILL ladder and a "family verification challenge" | Yes | Per READMEs, during the call | Evidence pack / 1930 link | Closest prior art. Ours differs on: covert SOS, outsider escalation, recovery pipeline, deployed product |
 
 ---
 
