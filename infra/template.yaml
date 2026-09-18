@@ -36,9 +36,15 @@ Parameters:
     Description: "1 = 45-second Watch deadlines and ladder rung timeouts (demo); 0 = production timeouts."
   DemoSeedEnabled:
     Type: String
-    Default: "1"
+    Default: "0"
     AllowedValues: ["0", "1"]
-    Description: "1 = POST /demo/seed is enabled."
+    Description: "1 = POST /demo/seed is enabled. Off by default; `make seed` uses /circles/join and does not need it."
+  UploadMaxBytes:
+    Type: Number
+    Default: 3500000
+    MinValue: 100000
+    MaxValue: 10000000
+    Description: Maximum screenshot size accepted by the presigned POST and by /analyze (bytes; 3.5 MB keeps Bedrock image limits and the 6 MB Lambda payload comfortable).
   DailyQuota:
     Type: Number
     Default: 30
@@ -344,6 +350,8 @@ Resources:
             Ref: DemoTimeouts
           DEMO_SEED_ENABLED:
             Ref: DemoSeedEnabled
+          UPLOAD_MAX_BYTES:
+            Ref: UploadMaxBytes
           DAILY_QUOTA:
             Ref: DailyQuota
           CHECKIN_DEADLINE_HOUR_DEFAULT: "11"

@@ -36,7 +36,7 @@ First time without a `samconfig.toml`: `make deploy-guided` walks through stack 
 
 Override parameters on the fly: `make deploy PARAMS='AppOrigins=https://main.d1234.amplifyapp.com,http://localhost:5173 BudgetEmail=team@example.com'` (a CommaDelimitedList parameter is passed as one comma-separated value, no spaces).
 
-Stack parameters (all have defaults): `AppOrigins` (comma-separated list), `ModelId`, `FallbackModelId`, `BedrockRegion`, `DemoTimeouts` (0/1), `DemoSeedEnabled` (0/1), `DailyQuota`, `VapidPublicKey`, `VapidSubject`, `BudgetEmail`, `PollyVoiceId`.
+Stack parameters (all have defaults): `AppOrigins` (comma-separated list), `ModelId`, `FallbackModelId`, `BedrockRegion`, `DemoTimeouts` (0/1), `DemoSeedEnabled` (0/1, default 0), `DailyQuota`, `UploadMaxBytes`, `VapidPublicKey`, `VapidSubject`, `BudgetEmail`, `PollyVoiceId`.
 
 Build notes:
 - All zip functions share `CodeUri: ../backend/` and one `backend/requirements.txt` on purpose (one build, one layer of deps).
@@ -89,7 +89,7 @@ Only the public key is a stack parameter (it is also served by `GET /push/public
 
   Send the **ID token** as `Authorization: Bearer <token>` (the authorizer's audience is the app client id, which only the ID token carries).
 - Seeded users are created with the admin API by `make seed` (`AdminCreateUser` + `AdminSetUserPassword --permanent`), so no e-mail verification is needed for the demo.
-- `POST /demo/seed` is only served when `DemoSeedEnabled=1`; set it to `0` (and `DemoTimeouts=0`) for anything beyond the hackathon demo, and rotate the seeded passwords after judging.
+- `POST /demo/seed` is only served when `DemoSeedEnabled=1` (default `0`). `make seed` goes through the normal `/circles` + `/circles/join` flow, so `/demo/seed` is normally not needed at all; if you did enable it, redeploy with `DemoSeedEnabled=0` (and `DemoTimeouts=0` beyond the demo) and rotate the seeded passwords after judging.
 
 ## Contracts the state machines assume from the backend
 
@@ -103,7 +103,7 @@ Only the public key is a stack parameter (it is also served by `GET /push/public
 
 - API Gateway stage throttle 5 rps / burst 10 (`DefaultRouteSettings`).
 - Per-user daily LLM quota `DailyQuota` (default 30) enforced in the API on `/analyze`, `/cases`, `/puchho`.
-- Presigned POST capped at 5 MB, `image/*` only; screenshots expire after 7 days.
+- Presigned POST capped at `UploadMaxBytes` (default 3.5 MB), `image/*` only; screenshots expire after 7 days.
 - Bedrock `max_tokens` capped in code; Haiku fallback on throttling.
 - AWS Budgets: pass `BudgetEmail=you@example.com` to create the USD 20 and USD 50 monthly alerts (confirm the SNS/e-mail subscription that AWS sends). Budgets is a global service; the resources are created from ap-south-1 without any extra setup.
 - Standard Step Functions executions cost per transition, not per second of waiting, so a 24 h `Wait` is effectively free. Log groups keep 14 days.
