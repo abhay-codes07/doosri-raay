@@ -1,0 +1,42 @@
+"""POST /uploads -> presigned POST restricted to images <= 5 MB."""
+from __future__ import annotations
+
+from typing import Any, Dict
+
+from common import auth, aws, config, db
+from common.http import ApiError, ok
+
+EXTENSIONS = {"image/png": "png", "image/jpeg": "jpg", "image/jpg": "jpg", "image/webp": "webp", "image/gif": "gif"}
+PURPOSES = ("analyze", "case")
+
+
+def object_key(circle_id: str, purpose: str, content_type: str) -> str:
+    ext = EXTENSIONS.get(content_type, "img")
+    return "circles/%s/%s/%s.%s" % (circle_id, purpose, db.new_id(), ext)
+
+
+def presign(key: str, content_type: str) -> Dict[str, Any]:
+    return aws.s3_client().generate_presigned_post(
+        Bucket=config.upload_bucket(),
+        Key=key,
+        Fields={"Content-Type": content_type},
+        Conditions=[
+            ["content-length-range", 0, config.MAX_UPLOAD_BYTES],
+            ["starts-with", "$Content-Type", "image/"],
+        ],
+        ExpiresIn=300,
+    )
+
+
+def post_upload(req: Any) -> Dict[str, Any]:
+    _, circle_id = auth.require_circle(req.sub)
+    body = req.body
+    content_type = str(body.get("contentType", "")).lower()
+    purpose = body.get("purpose", "analyze")
+    if not content_type.startswith("image/"):
+        raise ApiError(400, "invalid_content_type", "contentType must be image/*")
+    if purpose not in PURPOSES:
+        raise ApiError(400, "invalid_purpose", "purpose must be analyze or case")
+    key = object_key(circle_id, purpose, content_type)
+    presigned = presign(key, content_type)
+    return ok({"url": presigned["url"], "fields": presigned["fields"], "objectKey": key})
