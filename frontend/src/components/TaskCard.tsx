@@ -5,7 +5,7 @@ import { useT } from '../i18n/LangContext';
 import type { StringKey } from '../i18n/strings';
 import { formatTimeIST } from '../lib/dates';
 import { Countdown } from './ui';
-import { ACK_RE } from '../lib/validate';
+import { ACK_LEN, ACK_RE, ackNeedsWarning } from '../lib/validate';
 
 export interface TaskCardProps {
   task: Task;
@@ -219,6 +219,7 @@ export function TaskCard({ task, parentName, parentPhone, onComplete, inlineCase
       break;
     case 'ncrp_filed': {
       const valid = ACK_RE.test(ackNo.trim());
+      const warn = valid && ackNeedsWarning(ackNo);
       body = (
         <>
           <div className="field">
@@ -227,15 +228,20 @@ export function TaskCard({ task, parentName, parentPhone, onComplete, inlineCase
               id={`ack-${task.taskId}`}
               inputMode="numeric"
               autoComplete="off"
-              maxLength={14}
+              maxLength={ACK_LEN}
               value={ackNo}
               aria-invalid={ackNo.length > 0 && !valid}
               aria-describedby={`ack-help-${task.taskId}`}
-              onChange={(e) => setAckNo(e.target.value.replace(/\D/g, ''))}
+              onChange={(e) => setAckNo(e.target.value.replace(/\D/g, '').slice(0, ACK_LEN))}
             />
             <span id={`ack-help-${task.taskId}`} className={ackNo.length > 0 && !valid ? 'err' : 'help'}>
-              {ackNo.length > 0 && !valid ? t('ackNoInvalid') : t('ackNoHelp')}
+              {ackNo.length > 0 && !valid ? `${t('ackNoInvalid')} (${ackNo.length}/${ACK_LEN})` : t('ackNoHelp')}
             </span>
+            {warn && (
+              <span className="alert" role="status" style={{ marginTop: 4 }}>
+                {t('ackNoWarn')}
+              </span>
+            )}
           </div>
           <div className="task-actions">
             <a className="btn btn-big" href="https://cybercrime.gov.in" target="_blank" rel="noreferrer">

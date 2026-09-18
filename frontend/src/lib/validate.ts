@@ -1,5 +1,13 @@
-/** NCRP acknowledgement number: 14 digits starting with 329 (API contract). */
-export const ACK_RE = /^329\d{11}$/;
+/** NCRP acknowledgement number: 14 digits (API contract). */
+export const ACK_RE = /^\d{14}$/;
+export const ACK_LEN = 14;
+/** Most NCRP acknowledgement numbers start with 329; anything else gets a non-blocking warning. */
+export const ACK_EXPECTED_PREFIX = '329';
+
+export function ackNeedsWarning(ack: string): boolean {
+  const a = ack.trim();
+  return a.length > 0 && !a.startsWith(ACK_EXPECTED_PREFIX);
+}
 /** UPI/IMPS UTR: 12 digits. */
 export const UTR_RE = /^\d{12}$/;
 /** NEFT/RTGS reference: 16-22 alphanumerics. */
