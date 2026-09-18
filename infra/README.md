@@ -9,7 +9,7 @@ Everything in this folder is deployed by one AWS SAM stack (`infra/template.yaml
 | Cognito (`UserPool`, `UserPoolClient`) | e-mail sign-in, no client secret, SRP + USER_PASSWORD + refresh flows, 1 h tokens / 30 d refresh |
 | HTTP API (`HttpApi`) | every route from `docs/API.md` on one `ApiFunction`, JWT authorizer `CognitoJwt` as default, 5 rps / burst 10 |
 | Lambda | `ApiFunction`, `ClassifyWorkerFunction`, `LadderTaskFunction`, `WatchCheckFunction`, `LadderStatusFunction` (zip, python3.12, x86_64) and `RecoveryAgentFunction` (container image, Strands) |
-| Step Functions (Standard) | `WatchStateMachine`, `LadderStateMachine`, `RecoveryStateMachine` from `infra/statemachines/*.asl.json`, logging ALL + execution data to CloudWatch |
+| Step Functions (Standard) | `WatchStateMachine`, `LadderStateMachine`, `RecoveryStateMachine` from `infra/statemachines/*.asl.json`, logging level ERROR without execution data (task tokens / transactions stay out of CloudWatch), 14-day log groups |
 | SSM parameter | `/doosriraay/<stack>/vapid-private-key` placeholder (see VAPID below) |
 | AWS Budgets | USD 20 and USD 50 monthly ACTUAL-cost alerts, created only when `BudgetEmail` is set |
 

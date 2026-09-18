@@ -735,7 +735,10 @@ Resources:
 
   # -------------------------------------------------------------------------------------------
   # Step Functions (Standard) - docs/STATE_MACHINES.md
-  # Vended logs go to /aws/vendedlogs/... so the console shows every state transition.
+  # Vended logs go to /aws/vendedlogs/... (14-day retention). Level is ERROR with
+  # IncludeExecutionData false on purpose: execution input/output carries task tokens and
+  # confirmed transactions, which must never land in CloudWatch. The console still shows every
+  # state transition of an execution (that comes from the execution history, not the logs).
   # -------------------------------------------------------------------------------------------
   WatchLogGroup:
     Type: AWS::Logs::LogGroup
@@ -770,8 +773,8 @@ Resources:
         LadderStatusFunctionArn:
           Fn::GetAtt: [LadderStatusFunction, Arn]
       Logging:
-        Level: ALL
-        IncludeExecutionData: true
+        Level: ERROR
+        IncludeExecutionData: false
         Destinations:
           - CloudWatchLogsLogGroup:
               LogGroupArn:
@@ -811,8 +814,8 @@ Resources:
         LadderSmArn:
           Ref: LadderStateMachine
       Logging:
-        Level: ALL
-        IncludeExecutionData: true
+        Level: ERROR
+        IncludeExecutionData: false
         Destinations:
           - CloudWatchLogsLogGroup:
               LogGroupArn:
@@ -851,8 +854,8 @@ Resources:
         RecoveryAgentFunctionArn:
           Fn::GetAtt: [RecoveryAgentFunction, Arn]
       Logging:
-        Level: ALL
-        IncludeExecutionData: true
+        Level: ERROR
+        IncludeExecutionData: false
         Destinations:
           - CloudWatchLogsLogGroup:
               LogGroupArn:
