@@ -14,7 +14,16 @@ type Phase = 'idle' | 'uploading' | 'checking' | 'done' | 'error';
  * Minor tool: screenshot or pasted text → POST /uploads → POST /analyze → poll → three-state verdict.
  * Rendered in parent mode (Hindi first) or compact guardian mode.
  */
-export function ScreenshotCheck({ parentMode = false, guardianName }: { parentMode?: boolean; guardianName?: string }) {
+export function ScreenshotCheck({
+  parentMode = false,
+  familyName,
+  familyPhone,
+}: {
+  parentMode?: boolean;
+  /** Family member offered as a tel: link under the verdict. */
+  familyName?: string;
+  familyPhone?: string;
+}) {
   const api = useApi();
   const identity = useApiIdentity();
   const { t, lang } = useT();
@@ -113,7 +122,7 @@ export function ScreenshotCheck({ parentMode = false, guardianName }: { parentMo
 
       {report?.verdict && phase === 'done' ? (
         <div className="stack">
-          <VerdictCard verdict={report.verdict} guardianName={guardianName} parentMode={parentMode} />
+          <VerdictCard verdict={report.verdict} familyName={familyName} familyPhone={familyPhone} parentMode={parentMode} />
           <button type="button" className="btn" onClick={reset}>
             {parentMode ? <Bi k="close" /> : t('close')}
           </button>

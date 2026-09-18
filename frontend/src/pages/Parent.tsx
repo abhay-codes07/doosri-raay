@@ -35,7 +35,8 @@ function ParentTile({ embedded, onSignOut }: { embedded: boolean; onSignOut?: ()
   const { t } = useT();
   const { data, loading, error, reload } = useProfile(true);
   const profile = data?.profile ?? null;
-  const guardianName = data?.circle?.members.find((m) => m.role === 'guardian1')?.name;
+  const guardian1 = data?.circle?.members.find((m) => m.role === 'guardian1');
+  const guardianName = guardian1?.name;
 
   const now = useMemo(() => new Date(), []);
   const today = istDateString(now);
@@ -264,7 +265,7 @@ function ParentTile({ embedded, onSignOut }: { embedded: boolean; onSignOut?: ()
         {/* Madad */}
         <MadadSection guardianName={guardianName} />
 
-        <ScreenshotCheck parentMode guardianName={guardianName} />
+        <ScreenshotCheck parentMode familyName={guardianName} familyPhone={guardian1?.phone} />
 
         {!embedded && onSignOut && (
           <p className="row" style={{ justifyContent: 'center' }}>

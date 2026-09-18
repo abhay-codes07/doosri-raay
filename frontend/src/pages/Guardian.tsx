@@ -122,15 +122,15 @@ export function GuardianScreen({ embedded = false }: { embedded?: boolean }) {
           </ul>
         </Section>
 
-        <ScreenshotCheck guardianName={me?.name} />
+        <ScreenshotCheck familyName={parent?.name} familyPhone={parent?.phone} />
 
-        <RecentReports identity={identity} />
+        <RecentReports identity={identity} familyName={parent?.name} familyPhone={parent?.phone} />
       </div>
     </div>
   );
 }
 
-function RecentReports({ identity }: { identity: string }) {
+function RecentReports({ identity, familyName, familyPhone }: { identity: string; familyName?: string; familyPhone?: string }) {
   const api = useApi();
   const { t } = useT();
   const refs = listReports(identity);
@@ -184,7 +184,9 @@ function RecentReports({ identity }: { identity: string }) {
                   <Spinner />
                 )}
               </div>
-              {open === ref.reportId && r && r !== 'error' && r.verdict && <VerdictCard verdict={r.verdict} />}
+              {open === ref.reportId && r && r !== 'error' && r.verdict && (
+                <VerdictCard verdict={r.verdict} familyName={familyName} familyPhone={familyPhone} />
+              )}
             </li>
           );
         })}
