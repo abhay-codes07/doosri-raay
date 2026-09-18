@@ -1,30 +1,45 @@
-import { Authenticator, type UseAuthenticator } from '@aws-amplify/ui-react';
-import type { AuthUser } from 'aws-amplify/auth';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { ApiIdentityProvider } from './api/context';
 import { isConfigured } from './amplify';
+import { AuthGate, type AuthedUser } from './auth/AuthGate';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Layout } from './components/Layout';
 import { Spinner } from './components/ui';
 import { LangProvider, useT } from './i18n/LangContext';
 import { S, type Lang } from './i18n/strings';
 import { readString, writeString } from './lib/storage';
-import { CaseDetailPage } from './pages/CaseDetail';
-import { CaseNewPage } from './pages/CaseNew';
-import { DemoPage } from './pages/Demo';
-import { GuardianScreen } from './pages/Guardian';
-import { HomePage } from './pages/Home';
-import { OnboardingPage } from './pages/Onboarding';
-import { ParentScreen } from './pages/Parent';
-import { SettingsPage } from './pages/Settings';
 import { SessionProvider, useSession } from './session';
+
+// Route-level code splitting: each page (and the demo, which bundles both faces) is its own chunk.
+const HomePage = lazy(() => import('./pages/Home').then((m) => ({ default: m.HomePage })));
+const OnboardingPage = lazy(() => import('./pages/Onboarding').then((m) => ({ default: m.OnboardingPage })));
+const ParentScreen = lazy(() => import('./pages/Parent').then((m) => ({ default: m.ParentScreen })));
+const GuardianScreen = lazy(() => import('./pages/Guardian').then((m) => ({ default: m.GuardianScreen })));
+const CaseNewPage = lazy(() => import('./pages/CaseNew').then((m) => ({ default: m.CaseNewPage })));
+const CaseDetailPage = lazy(() => import('./pages/CaseDetail').then((m) => ({ default: m.CaseDetailPage })));
+const SettingsPage = lazy(() => import('./pages/Settings').then((m) => ({ default: m.SettingsPage })));
+const DemoPage = lazy(() => import('./pages/Demo').then((m) => ({ default: m.DemoPage })));
 
 const LANG_KEY = 'dr:lang';
 
 function readLang(): Lang {
   const v = readString(LANG_KEY);
   return v === 'en' ? 'en' : 'hi';
+}
+
+function AuthHeader() {
+  return (
+    <div className="auth-hero">
+      <div className="brand-mark" style={{ margin: '0 auto', width: 56, height: 56, fontSize: 28 }} aria-hidden="true">
+        दू
+      </div>
+      <h1>{S.appName.hi}</h1>
+      <p className="muted" style={{ margin: 0 }}>
+        {S.appName.en} · {S.tagline.hi}
+      </p>
+    </div>
+  );
 }
 
 export default function App() {
@@ -44,36 +59,16 @@ export default function App() {
     );
   }
   return (
-    <div className="auth-wrap-outer">
-      <Authenticator
-        loginMechanisms={['email']}
-        signUpAttributes={['email']}
-        components={{
-          Header() {
-            return (
-              <div className="auth-hero">
-                <div className="brand-mark" style={{ margin: '0 auto', width: 48, height: 48, fontSize: 24 }} aria-hidden="true">
-                  दू
-                </div>
-                <h1>{S.appName.hi}</h1>
-                <p className="muted" style={{ margin: 0 }}>
-                  {S.appName.en} · {S.tagline.hi}
-                </p>
-              </div>
-            );
-          },
-        }}
-      >
-        {({ signOut, user }) => <AuthedApp signOut={signOut} user={user} />}
-      </Authenticator>
-    </div>
+    <ErrorBoundary>
+      <AuthGate header={<AuthHeader />}>{(user, signOut) => <AuthedApp user={user} signOut={signOut} />}</AuthGate>
+    </ErrorBoundary>
   );
 }
 
-function AuthedApp({ signOut, user }: { signOut: UseAuthenticator['signOut'] | undefined; user: AuthUser | undefined }) {
-  const sub = user?.userId ?? 'me';
-  const email = user?.signInDetails?.loginId;
-  const doSignOut = useCallback(() => signOut?.(), [signOut]);
+function AuthedApp({ user, signOut }: { user: AuthedUser; signOut: () => void }) {
+  const sub = user.userId || 'me';
+  const email = user.email;
+  const doSignOut = useCallback(() => signOut(), [signOut]);
   const [lang, setLangState] = useState<Lang>(readLang);
   const setLang = useCallback((l: Lang) => {
     setLangState(l);
@@ -103,16 +98,18 @@ function LangFromProfile({ setLang }: { setLang: (l: Lang) => void }) {
   return null;
 }
 
+function PageSpinner() {
+  const { t } = useT();
+  return (
+    <div className="page">
+      <Spinner label={t('loading')} />
+    </div>
+  );
+}
+
 function RequireCircle({ children }: { children: ReactNode }) {
   const s = useSession();
-  const { t } = useT();
-  if (s.loading && !s.profile) {
-    return (
-      <div className="page">
-        <Spinner label={t('loading')} />
-      </div>
-    );
-  }
+  if (s.loading && !s.profile) return <PageSpinner />;
   if (!s.loading && !s.error && !s.hasCircle) return <Navigate to="/onboarding" replace />;
   return <>{children}</>;
 }
@@ -120,14 +117,7 @@ function RequireCircle({ children }: { children: ReactNode }) {
 /** Onboarding reads the session once on mount, so wait for the first profile load. */
 function OnboardingRoute() {
   const s = useSession();
-  const { t } = useT();
-  if (s.loading && !s.profile) {
-    return (
-      <div className="page">
-        <Spinner label={t('loading')} />
-      </div>
-    );
-  }
+  if (s.loading && !s.profile) return <PageSpinner />;
   return (
     <div className="page">
       <OnboardingPage key={s.profile?.circleId ?? 'none'} />
@@ -140,10 +130,14 @@ function ParentPage() {
   return <ParentScreen onSignOut={s.signOut} />;
 }
 
-/** Every route element sits inside its own boundary; the key resets it on navigation. */
+/** Every route element sits inside its own boundary (reset on navigation) and its own Suspense. */
 function Guarded({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
-  return <ErrorBoundary resetKey={pathname}>{children}</ErrorBoundary>;
+  return (
+    <ErrorBoundary resetKey={pathname}>
+      <Suspense fallback={<PageSpinner />}>{children}</Suspense>
+    </ErrorBoundary>
+  );
 }
 
 function AppRoutes() {
