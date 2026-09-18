@@ -16,7 +16,7 @@ accounts are in [Demo mode](#demo-mode-and-seeded-accounts).
 
 | Number | What it is | Source |
 |---|---|---|
-| **₹22,495 crore** | Lost to cyber fraud in India in 2025 | MHA figures (see `research-existing-solutions-and-how-to-win.md`, §5) |
+| **₹22,495 crore** | Lost to cyber fraud in India in 2025 | MHA figures (see `docs/RESEARCH.md`, §5) |
 | **1,03,488 complaints, ₹4,005 crore** | Senior-citizen cyber-fraud complaints and losses | MHA reply in the Rajya Sabha, 5 Aug 2026 (ANI) |
 | **2,97,727 complaints, ₹4,057.7 crore** | Digital-arrest complaints and losses since 2022 (to May 2026) | Government data reported by News18, Jul 2026 |
 | **5% → 2.2%** | Karnataka's recovery rate for digital-arrest losses, 2025 vs Jan–Feb 2026 | Times of India, Bengaluru, Mar 2026 |

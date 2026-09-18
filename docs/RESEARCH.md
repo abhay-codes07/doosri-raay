@@ -1,4 +1,4 @@
-# Existing solutions and how to beat them — research report (16 Sep 2026)
+# Existing solutions and design rationale — research report (16 Sep 2026)
 
 Scope: consumer scam protection for Indian families, with focus on digital arrest and elderly victims. Five research passes: government infrastructure, digital-arrest mechanics (25 cases), intervention-effectiveness evidence (50 studies/reports), startups and hackathon prior art, big-tech products. Items marked [unverified] rest on snippets or prior knowledge.
 
@@ -37,7 +37,7 @@ The evidence says the *victim-side detector* is the wrong frame:
 | UK 159 / Monzo Call Status / Banking Protocol | Unspoofable "is this really my bank" channel; branch staff call police (£61.3m prevented 2024 [unverified]) | No | Yes | — | No Indian equivalent to verify "is this really CBI/SBI" mid-call |
 | Singapore ScamShield + Project A.S.T.R.O. + CPF Trusted Contact | Police SMS-blast suspected victims (S$267.5m averted; "many victims unaware until the SMS"); CPF trusted contact gets notification copies, no account power; 1,266 in-person interventions | Yes (notification-only) | Yes (outreach) | Yes | The proven model; nothing like it exists in India for families |
 | Hiya / Resemble / Reality Defender / Pindrop | Deepfake voice detection: browser ext, API, or enterprise call centres | No | Not on phone calls | No | In-the-wild AUC drops ~48%; cross-language near chance (XMAD-Bench 2025). Route around, don't detect |
-| Kavach / Rakshak / SwarVed (hackathons) | Whisper + LLM + red overlay + family alert + mock UPI freeze + 1930 link; Kavach has PASS→CAUTION→PAUSE→KILL ladder and a "family verification challenge" | Yes | Claimed, not shipped | One-tap link | Closest prior art. Beat them on: covert SOS, outsider escalation, recovery pipeline, deployed product |
+| Kavach / Rakshak / SwarVed (hackathons) | Whisper + LLM + red overlay + family alert + mock UPI freeze + 1930 link; Kavach has PASS→CAUTION→PAUSE→KILL ladder and a "family verification challenge" | Yes | Claimed, not shipped | One-tap link | Closest prior art. Ours differs on: covert SOS, outsider escalation, recovery pipeline, deployed product |
 
 ---
 
@@ -74,7 +74,7 @@ Tagline: *Isolation is the weapon. A second opinion is the antidote.* (I4C's own
 
 Primary user: the guardian. The parent is asked for nothing under duress: the hero signal is passive.
 
-**Two hero flows, one minor tool, three time-boxed stretches** (authoritative scope and schedule: `doosri-raay-build-plan.md`):
+**Two hero flows, one minor tool, three time-boxed stretches** (authoritative scope and schedule: `docs/BUILD_PLAN.md`):
 
 1. **Isolation ladder (hero, passive).** The parent's app is a genuinely useful Panchang tile (tithi, weather, medicine reminder, family photo). Opening it each morning *is* the check-in. A missed open plus an unanswered guardian call, the two-signal rule, triggers a Step Functions ladder: guardian 1 → guardian 2 → named neighbour with a script and address → 112 guidance. Zero victim action; nothing appears on the parent's screen; nothing is recorded. → Gaps 1, 2, 3 (the onboarding consent makes the family the pre-authorised second opinion).
 2. **Recovery case manager (hero).** After a loss: Claude vision extracts UTR/amount/payee/time from screenshots, code validates them (12-digit UTR regex, amount, date) and the user confirms each field beside the image → fixed-template 1930 script and freeze letter, LLM-written NCRP narrative enforced to ≥200 chars and the allowed character set → state e-Zero FIR threshold → MRM eligibility and document checklist → refund-scam guard. A long-running Step Functions case where every human step is a `waitForTaskToken` callback with a deadline (24 h NCRP, 30-day Chakshu) that escalates to a guardian. → Gap 5.
@@ -87,7 +87,7 @@ Primary user: the guardian. The parent is asked for nothing under duress: the he
 
 **Regulatory tailwind to cite:** RBI Apr 2026 paper proposes exactly a "trusted person" for 70+ and 1-hour holds (not in force); SC 13-point directions (4 Aug 2026) demand victim-accessible systems; SC hearing again 16 Sep 2026; PM Mann Ki Baat warnings (Oct 2024, Feb 2026). Pitch line: "We built the trusted-person layer the RBI is proposing, today, without waiting for the banks."
 
-**Demo (3:00):** the single authoritative script is section 9 of `doosri-raay-build-plan.md`. In brief: sourced numbers and a *generic mock* "SCAM DETECTED" overlay (never other teams' demos) → Papa's Panchang tile, "opening it is the check-in" → Watch expires in the Step Functions console, Ladder runs, guardian taps "no answer", neighbour script; Papa's screen never changes and nothing is recorded → classifier card in the "watching" state → recovery case with validated fields beside the screenshot, 1930 script, NCRP narrative, e-Zero FIR threshold, MRM checklist, callback timer expiring into a guardian task → 3-second console tour of the eight services → eval table, prior art named (Kavach, Rakshak, SwarVed), roadmap. No voice plays anywhere in the ladder; Polly appears only in the Puchho stretch, which is inserted after the classifier card if it ships.
+**Demo (3:00):** the single authoritative script is section 9 of `docs/BUILD_PLAN.md`. In brief: sourced numbers and a *generic mock* "SCAM DETECTED" overlay (never other teams' demos) → Papa's Panchang tile, "opening it is the check-in" → Watch expires in the Step Functions console, Ladder runs, guardian taps "no answer", neighbour script; Papa's screen never changes and nothing is recorded → classifier card in the "watching" state → recovery case with validated fields beside the screenshot, 1930 script, NCRP narrative, e-Zero FIR threshold, MRM checklist, callback timer expiring into a guardian task → 3-second console tour of the eight services → eval table, prior art named (Kavach, Rakshak, SwarVed), roadmap. No voice plays anywhere in the ladder; Polly appears only in the Puchho stretch, which is inserted after the classifier card if it ships.
 
 **Numbers for the hook (verified, cite each on screen):** ₹22,495 cr lost to cyber fraud in 2025 (MHA); 1,03,488 senior-citizen complaints, ₹4,005 cr (MHA, Rajya Sabha, 5 Aug 2026); digital arrest 2,97,727 complaints / ₹4,057.7 cr since 2022 (government data via News18, Jul 2026); Karnataka digital-arrest recovery 5% (2025) → 2.2% (Jan–Feb 2026, TOI); Mumbai 1930 hold rate 25.68% (Rediff, May 2026); ₹10,700 cr frozen vs ₹323 cr refunded nationally (IE/FE, Jul 2026, snippet). Do **not** use "51% never report" (unverified).
 
@@ -95,7 +95,7 @@ Primary user: the guardian. The parent is asked for nothing under duress: the he
 
 ## 6. Risks specific to the pivot
 
-- **Kavach's "family verification challenge" is the nearest prior art.** Differentiate visibly: passive ladder with zero victim action, a parent UX with no warnings at all, the validated recovery pipeline, and a deployed product with published eval numbers. Say so in the writeup.
+- **Kavach's "family verification challenge" is the nearest prior art.** Differentiate visibly: passive ladder with zero victim action, a parent UX with no warnings at all, the validated recovery pipeline, and a deployed product with an evaluation harness and a 70-item test set (model numbers are produced by `python eval/run_eval.py` after deployment). Say so in the writeup.
 - **A polling PWA does not buzz in the background.** Web Push (VAPID) on Android Chrome is a stretch; otherwise the guardian view is shown in the foreground in demo mode and the README says so.
 - **False escalations** (parent forgot to open the tile). Mitigate: two-signal rule (missed check-in AND an unanswered guardian call), a "watching" state before rung 2, and a holiday mode.
 - **A false "no red flags" verdict is the worst classifier failure.** Three states, never "safe", always "still ask family"; screenshot text is untrusted input and outputs are enum-constrained.

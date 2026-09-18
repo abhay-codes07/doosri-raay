@@ -2,7 +2,7 @@
 
 Generated 2026-09-18 10:21 UTC from `eval/items.jsonl` by `eval/run_eval.py` in **--dry-run** mode (deterministic keyword heuristic, no model call).
 
-**Caveat.** This is a hand-built 70-item set (35 Hindi/Hinglish, 35 English; 21 benign controls, 14 adversarially softened scam messages, 2 prompt-injection probes), written by the team in one day. It measures whether the classifier behaves as designed on the pretexts we know about; it is **not** field accuracy and says nothing about base rates in real inboxes. The research doc (`research-existing-solutions-and-how-to-win.md`, section 4) is why we report three states and treat a false 'no red flags' as the worst failure: LLM detectors reach ~1.0 recall but only 0.70–0.77 precision on hard data, and an 'uncertain' state is what keeps users from disabling the feature. Public Hindi scam datasets are tiny (~120 messages), so a larger eval is roadmap, not a claim.
+**Caveat.** This is a hand-built 70-item set (35 Hindi/Hinglish, 35 English; 21 benign controls, 14 adversarially softened scam messages, 2 prompt-injection probes), written by the team in one day. It measures whether the classifier behaves as designed on the pretexts we know about; it is **not** field accuracy and says nothing about base rates in real inboxes. The research doc (`docs/RESEARCH.md`, section 4) is why we report three states and treat a false 'no red flags' as the worst failure: LLM detectors reach ~1.0 recall but only 0.70–0.77 precision on hard data, and an 'uncertain' state is what keeps users from disabling the feature. Public Hindi scam datasets are tiny (~120 messages), so a larger eval is roadmap, not a claim.
 
 ## Summary
 

@@ -1,6 +1,6 @@
 # Demo script (3:00) and pre-flight checklist
 
-Authoritative script: `doosri-raay-build-plan.md` section 9. This file turns it into a shot list. Record with
+Authoritative script: `docs/BUILD_PLAN.md` section 9. This file turns it into a shot list. Record with
 OBS in a single browser window: left pane parent tile (seeded "Papa"), right pane guardian dashboard (seeded
 "Priya"), the Step Functions console and one DynamoDB item in separate tabs. Voiceover after, cut to 3:00.
 

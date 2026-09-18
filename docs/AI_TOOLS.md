@@ -4,7 +4,7 @@ Disclosure as required by the hackathon rules.
 
 | Tool | Used for | By whom |
 |---|---|---|
-| **Claude Code (Claude Fable 5.1, Anthropic)** | Research synthesis (`research-existing-solutions-and-how-to-win.md`), architecture and build plan, and code generation across the repo: `infra/`, `backend/`, `frontend/`, `eval/`, `scripts/`, the docs and this README. Also drafted the 70-item eval set and the synthetic demo screenshots. | Whole team, in pair-programming sessions |
+| **Claude Code (Claude Fable 5.1, Anthropic)** | Research synthesis (`docs/RESEARCH.md`), architecture and build plan, and code generation across the repo: `infra/`, `backend/`, `frontend/`, `eval/`, `scripts/`, the docs and this README. Also drafted the 70-item eval set and the synthetic demo screenshots. | Whole team, in pair-programming sessions |
 | **Amazon Bedrock: Claude Sonnet 4.6 (`global.anthropic.claude-sonnet-4-6`), fallback Claude Haiku 4.5** | Runtime only: the three-state classifier (one Converse call with forced tool use) and the NCRP narrative inside the recovery agent. The model never decides anything unvalidated: enums, lengths and character sets are enforced in code. | Product runtime |
 | **Strands Agents SDK** | Tool-calling loop for the recovery agent (container Lambda). | Product runtime |
 

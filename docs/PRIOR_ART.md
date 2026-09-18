@@ -1,7 +1,7 @@
 # Prior art
 
 We name what exists so the judges do not have to. Facts and links below come from
-`research-existing-solutions-and-how-to-win.md` (16 Sep 2026), which counted GitHub repos created since
+`docs/RESEARCH.md` (16 Sep 2026), which counted GitHub repos created since
 1 Jan 2025 with "scam detection" (3,355), "UPI fraud" (1,620) and "digital arrest" (159) in the name or
 description. The stack "AI listens to the call → detects digital arrest → red warning → alert family →
 freeze UPI → one-tap 1930" is the median Indian hackathon submission of 2026.
