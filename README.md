@@ -275,10 +275,12 @@ python eval/run_eval.py --fallback           # real run: Sonnet 4.6 and Haiku 4.
 
 ## Prior art
 
-Kavach, Rakshak, SwarVed, CallGuard, ScamShieldAI, ScamDekho, Truecaller Family, Google's June 2026 fake-call
-verification, EverSafe/Carefull and Singapore's ScamShield + CPF Trusted Contact, with what each does and the
-four things we do differently (passive ladder with zero victim action; a parent UX with no warnings; a
-validated end-to-end recovery pipeline; a deployed product with published eval numbers): **`docs/PRIOR_ART.md`**.
+Kavach, Rakshak, SwarVed AI, CallGuard, ScamShield AI (described only as their public READMEs describe them, with
+thanks to those teams for open-sourcing their work), ScamDekho, Truecaller Family, Google's June 2026 fake-call
+verification, EverSafe/Carefull and Singapore's ScamShield + CPF Trusted Contact, and the four things we chose
+to do differently (passive ladder with zero victim action; a parent UX with no warnings; a validated end-to-end
+recovery pipeline; a deployable product with an evaluation harness and a 70-item test set, whose model numbers
+are produced by `python eval/run_eval.py` after deployment): **`docs/PRIOR_ART.md`**.
 
 ## AI tools used
 
