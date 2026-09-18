@@ -186,7 +186,7 @@ export interface CompleteTaskResponse {
 
 export interface UploadRequest {
   contentType: string;
-  purpose: 'analyze' | 'case';
+  purpose: 'analyze' | 'case' | 'photo';
 }
 
 export interface UploadResponse {

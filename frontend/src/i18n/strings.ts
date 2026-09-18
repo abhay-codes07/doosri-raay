@@ -122,6 +122,26 @@ export const S = {
   goToApp: { hi: 'ऐप खोलें', en: 'Open the app' },
   editProfile: { hi: 'प्रोफ़ाइल बदलें', en: 'Edit profile' },
   yourCircle: { hi: 'आपका परिवार', en: 'Your circle' },
+  settingsTitle: { hi: 'सेटिंग', en: 'Settings' },
+  settingsForYou: { hi: 'आपके अपने खाते की सेटिंग', en: 'Settings for your own account' },
+  holidayMode: { hi: 'छुट्टी mode', en: 'Holiday mode' },
+  holidayModeHelp: {
+    hi: 'यात्रा या अस्पताल में हों तो चालू करें — रोज़ के पंचांग की प्रतीक्षा रुक जाती है, परिवार को बेवजह फ़ोन नहीं जाता।',
+    en: 'Turn on while travelling or in hospital: the daily Panchang wait pauses and the family is not called needlessly.',
+  },
+  holidayOnLabel: { hi: 'छुट्टी mode चालू है', en: 'Holiday mode is on' },
+  holidayOffLabel: { hi: 'छुट्टी mode बंद है', en: 'Holiday mode is off' },
+  holidayOn: { hi: 'छुट्टी mode चालू कर दिया', en: 'Holiday mode turned on' },
+  holidayOff: { hi: 'छुट्टी mode बंद कर दिया', en: 'Holiday mode turned off' },
+  holidayParentOnly: {
+    hi: 'छुट्टी mode माता-पिता के अपने फ़ोन से चालू/बंद होता है — परिवार को सिर्फ़ ख़बर मिलती है, नियंत्रण नहीं।',
+    en: 'Holiday mode is switched from the parent\'s own phone; family members are told, they do not control it.',
+  },
+  familyPhoto: { hi: 'परिवार की तस्वीर', en: 'Family photo' },
+  familyPhotoHelp: { hi: 'यह तस्वीर पंचांग पर "आज की तस्वीर" में दिखेगी।', en: 'Shown on the Panchang tile as the photo of the day.' },
+  choosePhoto: { hi: 'तस्वीर चुनें', en: 'Choose a photo' },
+  savePhoto: { hi: 'तस्वीर सहेजें', en: 'Save photo' },
+  photoSaved: { hi: 'तस्वीर सहेज ली', en: 'Photo saved' },
 
   // ---- parent (Panchang tile) ----
   today: { hi: 'आज', en: 'Today' },

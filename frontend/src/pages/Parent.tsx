@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useApi, useApiIdentity } from '../api/context';
 import { describeError, isAbort } from '../api/client';
 import type { PuchhoAuthorityResponse, PuchhoStatus } from '../api/types';
@@ -268,11 +269,16 @@ function ParentTile({ embedded, onSignOut }: { embedded: boolean; onSignOut?: ()
 
         <ScreenshotCheck parentMode familyName={guardianName} familyPhone={guardian1?.phone} />
 
-        {!embedded && onSignOut && (
+        {!embedded && (
           <p className="row" style={{ justifyContent: 'center' }}>
-            <button type="button" className="btn btn-quiet small" onClick={onSignOut}>
-              {t('signOut')}
-            </button>
+            <Link className="btn btn-quiet small" to="/settings">
+              {t('settingsTitle')}
+            </Link>
+            {onSignOut && (
+              <button type="button" className="btn btn-quiet small" onClick={onSignOut}>
+                {t('signOut')}
+              </button>
+            )}
           </p>
         )}
       </div>

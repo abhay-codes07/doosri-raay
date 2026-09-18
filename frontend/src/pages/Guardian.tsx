@@ -84,8 +84,13 @@ export function GuardianScreen({ embedded = false }: { embedded?: boolean }) {
               {ladderState && <p style={{ margin: '4px 0' }}>{t(LADDER_COPY[ladderState].key)}</p>}
             </>
           )}
-          <div className="row mt">
+          <div className="row mt spread">
             <PushButton />
+            {!embedded && (
+              <Link className="btn btn-quiet" to="/settings">
+                {t('settingsTitle')}
+              </Link>
+            )}
           </div>
         </section>
 

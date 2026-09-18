@@ -17,6 +17,7 @@ import { GuardianScreen } from './pages/Guardian';
 import { HomePage } from './pages/Home';
 import { OnboardingPage } from './pages/Onboarding';
 import { ParentScreen } from './pages/Parent';
+import { SettingsPage } from './pages/Settings';
 import { SessionProvider, useSession } from './session';
 
 const LANG_KEY = 'dr:lang';
@@ -207,6 +208,16 @@ function AppRoutes() {
             <Guarded>
               <RequireCircle>
                 <CaseDetailPage />
+              </RequireCircle>
+            </Guarded>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <Guarded>
+              <RequireCircle>
+                <SettingsPage />
               </RequireCircle>
             </Guarded>
           }

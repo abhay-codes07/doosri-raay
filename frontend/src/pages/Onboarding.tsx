@@ -38,6 +38,7 @@ export function OnboardingPage() {
   const [stateName, setStateName] = useState(p.state ?? '');
   const [phone, setPhone] = useState(p.phone ?? '');
   const [checkinHour, setCheckinHour] = useState<number>(p.checkinHourIST ?? 11);
+  const [holidayMode, setHolidayMode] = useState<boolean>(Boolean(p.holidayMode));
   const [nName, setNName] = useState(p.neighbour?.name ?? '');
   const [nPhone, setNPhone] = useState(p.neighbour?.phone ?? '');
   const [nAddress, setNAddress] = useState(p.neighbour?.address ?? '');
@@ -91,6 +92,7 @@ export function OnboardingPage() {
     };
     if (isParent) {
       input.checkinHourIST = checkinHour;
+      input.holidayMode = holidayMode;
       input.neighbour = { name: nName.trim(), phone: nPhone.trim(), address: nAddress.trim() };
       input.codeWord = codeWord.trim();
       input.medicines = medicines
@@ -278,6 +280,14 @@ export function OnboardingPage() {
                     </option>
                   ))}
                 </select>
+              </div>
+              <div className="field">
+                <label className="check" htmlFor="holiday">
+                  <input id="holiday" type="checkbox" checked={holidayMode} onChange={(e) => setHolidayMode(e.target.checked)} />
+                  <span>
+                    <strong>{t('holidayMode')}</strong> <span className="muted small">{t('holidayModeHelp')}</span>
+                  </span>
+                </label>
               </div>
               <h3 style={{ marginTop: 20 }}>{t('neighbourTitle')}</h3>
               <div className="field">
