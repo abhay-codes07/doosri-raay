@@ -52,13 +52,15 @@ def _guardians(members: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return [m for m in members if m.get("role") in auth.GUARDIAN_ROLES]
 
 
-def _inform_guardians(circle_id: str, members: List[Dict[str, Any]], parent_name: str, message: str) -> None:
+def _inform_guardians(circle_id: str, members: List[Dict[str, Any]], parent_name: str, message: str) -> List[Dict[str, Any]]:
+    """Create the informational guardian tasks; returns them so the caller pushes after all writes."""
     ctx = {"parent": parent_name, "message": message, "time": db.utcnow().astimezone(db.IST).strftime("%H:%M")}
     en, hi = texts.task_text("info", ctx)
-    for g in _guardians(members):
-        task = tasks.create_task(circle_id, "info", g["sub"], en, hi, context={"reason": "puchho"},
-                                 expires_in=86400, assignee_name=g.get("name"))
-        push.send_push(auth.load_profile(g["sub"]), push.build_payload(task))
+    return [
+        tasks.create_task(circle_id, "info", g["sub"], en, hi, context={"reason": "puchho"},
+                          expires_in=86400, assignee_name=g.get("name"))
+        for g in _guardians(members)
+    ]
 
 
 def post_puchho(req: Any) -> Dict[str, Any]:
@@ -72,7 +74,8 @@ def post_puchho(req: Any) -> Dict[str, Any]:
     if kind == "authority":
         lang = "en" if profile.get("lang") == "en" else "hi"
         url = authority_audio_url(lang)
-        _inform_guardians(circle_id, members, parent_name, texts.I4C_LINE_EN)
+        info_tasks = _inform_guardians(circle_id, members, parent_name, texts.I4C_LINE_EN)
+        push.push_for_tasks(info_tasks, auth.load_profile)
         return ok({"audioUrl": url, "textHi": texts.I4C_LINE_HI_ROMAN, "textEn": texts.I4C_LINE_EN})
     return _family(req, profile, circle_id, members, parent_name)
 
@@ -83,14 +86,16 @@ def _family(req: Any, profile: Dict[str, Any], circle_id: str, members: List[Dic
     if not targets:
         raise ApiError(400, "no_family", "No family member to ask")
     en, hi = texts.task_text("puchho_family", {"parent": parent_name})
-    task_ids: List[str] = []
-    for member in targets:
-        task = tasks.create_task(circle_id, "puchho_family", member["sub"], en, hi,
-                                 context={"parentSub": req.sub, "reason": "puchho"},
-                                 expires_in=900, assignee_name=member.get("name"))
-        task_ids.append(task["taskId"])
-        push.send_push(auth.load_profile(member["sub"]), push.build_payload(task))
-    _inform_guardians(circle_id, members, parent_name, "asked the family whether a call is real")
+    family_tasks = [
+        tasks.create_task(circle_id, "puchho_family", member["sub"], en, hi,
+                          context={"parentSub": req.sub, "reason": "puchho"},
+                          expires_in=900, assignee_name=member.get("name"))
+        for member in targets
+    ]
+    info_tasks = _inform_guardians(circle_id, members, parent_name, "asked the family whether a call is real")
+    # every write is done; pushes last and best effort
+    push.push_for_tasks(family_tasks + info_tasks, auth.load_profile)
+    task_ids = [t["taskId"] for t in family_tasks]
     return ok({"taskId": task_ids[0], "taskIds": task_ids}, status=202)
 
 

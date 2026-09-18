@@ -84,11 +84,7 @@ def post_sos(req: Any) -> Dict[str, Any]:
                       {"activeLadderArn": arn or None, "lastSosAt": ts})
 
     # pushes last: every DynamoDB write and Step Functions call above is already durable
-    for task in created:
-        try:
-            push.send_push(auth.load_profile(task["assigneeSub"]), push.build_payload(task))
-        except Exception as exc:  # noqa: BLE001 - never fail the SOS because of a push
-            log.warning("sos push skipped for %s: %s", task.get("assigneeSub"), exc)
+    push.push_for_tasks(created, auth.load_profile)
     return ok({"ladderExecutionArn": arn, "taskIds": [t["taskId"] for t in created]}, status=202)
 
 

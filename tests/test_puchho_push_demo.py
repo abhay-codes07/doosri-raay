@@ -164,3 +164,45 @@ def test_demo_reset_stops_everything_and_clears_today(api, family, monkeypatch):
     monkeypatch.setenv("DEMO_SEED_ENABLED", "0")
     monkeypatch.setenv("DEMO_TIMEOUTS", "0")
     assert api("POST", "/demo/reset", "g1", {})[0] == 404
+
+
+def test_push_passes_timeout_and_swallows_errors(api, family, monkeypatch):
+    import sys
+    import types
+
+    calls = []
+
+    def fake_webpush(**kwargs):
+        calls.append(kwargs)
+        if len(calls) == 2:
+            raise TimeoutError("push service slow")
+        return True
+
+    monkeypatch.setitem(sys.modules, "pywebpush", types.SimpleNamespace(webpush=fake_webpush))
+    monkeypatch.setattr(push, "_private_key", lambda: "fake-key")
+    profile = {"sub": "g1", "pushSub": {"endpoint": "https://push.example/abc", "keys": {"p256dh": "x", "auth": "y"}}}
+    assert push.send_push(profile, {"title": "Doosri Raay", "body": "hi"}) is True
+    assert calls[0]["timeout"] == 5 and calls[0]["ttl"] == 3600 and calls[0]["subscription_info"] == profile["pushSub"]
+    assert push.send_push(profile, {"title": "x"}) is False  # raised inside webpush: swallowed
+    assert push.send_push_many([profile, None, profile], {"title": "x"}) == 2
+
+
+def test_puchho_pushes_after_every_write(api, family, polly, monkeypatch):
+    order = []
+    original = tasks.create_task
+
+    def record(*args, **kwargs):
+        order.append("write")
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(tasks, "create_task", record)
+
+    def boom(profile, payload):
+        order.append("push")
+        raise RuntimeError("push down")
+
+    monkeypatch.setattr(push, "send_push", boom)
+    status, body = api("POST", "/puchho", family["parent"], {"kind": "family"})
+    assert status == 202, body
+    assert order.index("push") == order.count("write")  # all writes precede the first push
+    assert order.count("write") == 3 and order.count("push") == 3
