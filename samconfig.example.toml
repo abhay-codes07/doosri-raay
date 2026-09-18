@@ -6,7 +6,7 @@
 #   make deploy
 #
 # Notes
-# - `use_container = true` builds the Python functions inside the official arm64 Lambda build image
+# - `use_container = true` builds the Python functions inside the official x86_64 Lambda build image
 #   so native wheels (cryptography for web-push, etc.) match the runtime. Docker must be running.
 # - `resolve_s3 = true` lets SAM create/reuse a managed S3 bucket for the zip artifacts.
 # - `resolve_image_repos = true` lets SAM create an ECR repository for RecoveryAgentFunction

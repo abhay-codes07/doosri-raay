@@ -8,7 +8,7 @@ Everything in this folder is deployed by one AWS SAM stack (`infra/template.yaml
 | S3 bucket (`UploadBucket`) | screenshots via presigned POST; public access blocked, SSE-S3, CORS only for `AppOrigin`, `circles/` expires after 7 days, TLS-only bucket policy |
 | Cognito (`UserPool`, `UserPoolClient`) | e-mail sign-in, no client secret, SRP + USER_PASSWORD + refresh flows, 1 h tokens / 30 d refresh |
 | HTTP API (`HttpApi`) | every route from `docs/API.md` on one `ApiFunction`, JWT authorizer `CognitoJwt` as default, 5 rps / burst 10 |
-| Lambda | `ApiFunction`, `ClassifyWorkerFunction`, `LadderTaskFunction`, `WatchCheckFunction`, `LadderStatusFunction` (zip, python3.12, arm64) and `RecoveryAgentFunction` (container image, Strands) |
+| Lambda | `ApiFunction`, `ClassifyWorkerFunction`, `LadderTaskFunction`, `WatchCheckFunction`, `LadderStatusFunction` (zip, python3.12, x86_64) and `RecoveryAgentFunction` (container image, Strands) |
 | Step Functions (Standard) | `WatchStateMachine`, `LadderStateMachine`, `RecoveryStateMachine` from `infra/statemachines/*.asl.json`, logging ALL + execution data to CloudWatch |
 | SSM parameter | `/doosriraay/<stack>/vapid-private-key` placeholder (see VAPID below) |
 | AWS Budgets | USD 20 and USD 50 monthly ACTUAL-cost alerts, created only when `BudgetEmail` is set |
@@ -20,7 +20,7 @@ The template uses only long-form intrinsics (`Fn::Sub`, `Ref`, `Fn::GetAtt`) so 
 - An AWS account on a **paid plan** with **Amazon Bedrock model access for Anthropic Claude enabled in ap-south-1** (the stack uses the *global* inference profiles `global.anthropic.claude-sonnet-4-6` and `global.anthropic.claude-haiku-4-5-20251001-v1:0`; enable Claude Sonnet 4.6 and Claude Haiku 4.5 under Bedrock -> Model access). Test once with `aws bedrock-runtime converse --model-id global.anthropic.claude-sonnet-4-6 --messages '[{"role":"user","content":[{"text":"hi"}]}]' --region ap-south-1`.
 - AWS CLI v2 configured (`aws configure`) with a user/role that can create IAM roles.
 - AWS SAM CLI >= 1.100 (`pip install aws-sam-cli` or the installer).
-- Docker Desktop running (`sam build --use-container` builds the Python functions in the arm64 Lambda image; the recovery agent is a container image).
+- Docker Desktop running (`sam build --use-container` builds the Python functions in the x86_64 Lambda build image; the recovery agent is a container image).
 - Node 20 (`frontend/`), Python 3.10+ (`scripts/`, `eval/`, tests), GNU make (Git Bash on Windows works).
 
 ## One-command deploy
@@ -40,7 +40,7 @@ Stack parameters (all have defaults): `AppOrigin`, `ModelId`, `FallbackModelId`,
 
 Build notes:
 - All zip functions share `CodeUri: ../backend/` and one `backend/requirements.txt` on purpose (one build, one layer of deps).
-- `RecoveryAgentFunction` builds `backend/recovery_agent/Dockerfile` with context `backend/`, tag `v1`, platform `linux/arm64`. On an x86 laptop Docker uses QEMU; if that build fails, change only that function to `Architectures: [x86_64]` (nothing else depends on it) and make sure the Dockerfile base image is `public.ecr.aws/lambda/python:3.12`.
+- `RecoveryAgentFunction` builds `backend/recovery_agent/Dockerfile` with context `backend/`, tag `v1`, platform `linux/amd64` (all functions are x86_64 so no QEMU emulation is needed on x86 laptops). Verified locally with `docker build --platform linux/amd64 -f recovery_agent/Dockerfile backend/`. Base image is `public.ecr.aws/lambda/python:3.12`.
 
 ## Web Push (VAPID)
 

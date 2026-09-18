@@ -70,7 +70,7 @@ Conditions:
 Globals:
   Function:
     Architectures:
-      - arm64
+      - x86_64
     Tracing: Active
 
 Resources:
@@ -687,9 +687,9 @@ Resources:
 
   # -------------------------------------------------------------------------------------------
   # Lambda: recovery agent (Strands, container image)
-  # arm64 keeps it consistent with the other functions; `sam build` passes --platform
-  # linux/arm64 to Docker (buildx/QEMU on x86 hosts). If the local image build fails, switch
-  # this one function to `Architectures: [x86_64]` - nothing else depends on it.
+  # All functions are x86_64 (Globals) so `sam build --use-container` and this image build
+  # work on ordinary x86 laptops without QEMU. The image was verified locally with
+  # `docker build --platform linux/amd64`. arm64 (Graviton) would be a cheap follow-up.
   # -------------------------------------------------------------------------------------------
   RecoveryAgentFunction:
     Type: AWS::Serverless::Function
