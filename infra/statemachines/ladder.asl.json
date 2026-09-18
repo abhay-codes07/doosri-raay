@@ -1,0 +1,310 @@
+{
+  "Comment": "Doosri Raay Ladder: outsider escalation. Rung 1 guardian1 -> (watching) -> rung 2 guardian2 -> rung 3 neighbour via guardian1 -> rung 4 call 112. Every human rung is a ladder-task Lambda with .waitForTaskToken and TimeoutSecondsPath $.timeouts.rung; a timeout moves to the next rung. Input: {circleId, parentSub, reason: missed_checkin|sos, timeouts:{rung}}.",
+  "StartAt": "Rung1GuardianCall",
+  "States": {
+    "Rung1GuardianCall": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+      "Parameters": {
+        "FunctionName": "${LadderTaskFunctionArn}",
+        "Payload": {
+          "kind": "guardian_call",
+          "rung": 1,
+          "assigneeRole": "guardian1",
+          "circleId.$": "$.circleId",
+          "parentSub.$": "$.parentSub",
+          "reason.$": "$.reason",
+          "wait": true,
+          "taskToken.$": "$$.Task.Token"
+        }
+      },
+      "TimeoutSecondsPath": "$.timeouts.rung",
+      "ResultPath": "$.rung1",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.Timeout"],
+          "ResultPath": "$.timeoutInfo",
+          "Next": "Rung2GuardianCall"
+        },
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "ResultPath": "$.failInfo",
+          "Next": "Rung2GuardianCall"
+        }
+      ],
+      "Next": "Rung1Outcome"
+    },
+    "Rung1Outcome": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "And": [
+            { "Variable": "$.rung1.outcome", "IsPresent": true },
+            { "Variable": "$.rung1.outcome", "StringEquals": "reached" }
+          ],
+          "Next": "Resolved"
+        }
+      ],
+      "Default": "MarkWatching"
+    },
+    "MarkWatching": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "Two-signal rule: a missed check-in plus an unanswered guardian call. ladder-status writes ladderState=watching on the parent's MEMBER item.",
+      "Parameters": {
+        "FunctionName": "${LadderStatusFunctionArn}",
+        "Payload": {
+          "ladderState": "watching",
+          "closeOpenTasks": false,
+          "circleId.$": "$.circleId",
+          "parentSub.$": "$.parentSub",
+          "reason.$": "$.reason"
+        }
+      },
+      "ResultPath": "$.markWatching",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "Rung2GuardianCall"
+    },
+    "Rung2GuardianCall": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+      "Comment": "ladder-task falls back to guardian1 when the circle has no guardian2.",
+      "Parameters": {
+        "FunctionName": "${LadderTaskFunctionArn}",
+        "Payload": {
+          "kind": "guardian_call",
+          "rung": 2,
+          "assigneeRole": "guardian2",
+          "circleId.$": "$.circleId",
+          "parentSub.$": "$.parentSub",
+          "reason.$": "$.reason",
+          "wait": true,
+          "taskToken.$": "$$.Task.Token"
+        }
+      },
+      "TimeoutSecondsPath": "$.timeouts.rung",
+      "ResultPath": "$.rung2",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.Timeout"],
+          "ResultPath": "$.timeoutInfo",
+          "Next": "Rung3Neighbour"
+        },
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "ResultPath": "$.failInfo",
+          "Next": "Rung3Neighbour"
+        }
+      ],
+      "Next": "Rung2Outcome"
+    },
+    "Rung2Outcome": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "And": [
+            { "Variable": "$.rung2.outcome", "IsPresent": true },
+            { "Variable": "$.rung2.outcome", "StringEquals": "reached" }
+          ],
+          "Next": "Resolved"
+        }
+      ],
+      "Default": "Rung3Neighbour"
+    },
+    "Rung3Neighbour": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+      "Comment": "Task to guardian1 with the neighbour's name, phone, address and a knock script.",
+      "Parameters": {
+        "FunctionName": "${LadderTaskFunctionArn}",
+        "Payload": {
+          "kind": "neighbour",
+          "rung": 3,
+          "assigneeRole": "guardian1",
+          "circleId.$": "$.circleId",
+          "parentSub.$": "$.parentSub",
+          "reason.$": "$.reason",
+          "wait": true,
+          "taskToken.$": "$$.Task.Token"
+        }
+      },
+      "TimeoutSecondsPath": "$.timeouts.rung",
+      "ResultPath": "$.rung3",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.Timeout"],
+          "ResultPath": "$.timeoutInfo",
+          "Next": "Rung4Emergency"
+        },
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "ResultPath": "$.failInfo",
+          "Next": "Rung4Emergency"
+        }
+      ],
+      "Next": "Rung3Outcome"
+    },
+    "Rung3Outcome": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "And": [
+            { "Variable": "$.rung3.outcome", "IsPresent": true },
+            { "Variable": "$.rung3.outcome", "StringEquals": "reached" }
+          ],
+          "Next": "Resolved"
+        }
+      ],
+      "Default": "Rung4Emergency"
+    },
+    "Rung4Emergency": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "Informational task, no token wait: 'Call 112. Say: elderly parent unreachable since HH:MM, address ...'. Pushed to all guardians.",
+      "Parameters": {
+        "FunctionName": "${LadderTaskFunctionArn}",
+        "Payload": {
+          "kind": "emergency",
+          "rung": 4,
+          "assigneeRole": "guardian1",
+          "circleId.$": "$.circleId",
+          "parentSub.$": "$.parentSub",
+          "reason.$": "$.reason",
+          "wait": false
+        }
+      },
+      "ResultPath": "$.rung4",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "MarkEscalated"
+    },
+    "MarkEscalated": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${LadderStatusFunctionArn}",
+        "Payload": {
+          "ladderState": "escalated",
+          "closeOpenTasks": false,
+          "circleId.$": "$.circleId",
+          "parentSub.$": "$.parentSub",
+          "reason.$": "$.reason"
+        }
+      },
+      "ResultPath": "$.markEscalated",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "Escalated"
+    },
+    "Escalated": {
+      "Type": "Succeed",
+      "Comment": "All rungs exhausted; guardians have the 112 script and ladderState=escalated."
+    },
+    "Resolved": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "A guardian reached the parent. ladder-status sets ladderState=ok and closes the open ladder tasks.",
+      "Parameters": {
+        "FunctionName": "${LadderStatusFunctionArn}",
+        "Payload": {
+          "ladderState": "ok",
+          "closeOpenTasks": true,
+          "circleId.$": "$.circleId",
+          "parentSub.$": "$.parentSub",
+          "reason.$": "$.reason"
+        }
+      },
+      "ResultPath": "$.resolved",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "Ok"
+    },
+    "Ok": {
+      "Type": "Succeed"
+    }
+  }
+}

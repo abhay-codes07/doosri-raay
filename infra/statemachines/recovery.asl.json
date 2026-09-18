@@ -1,0 +1,555 @@
+{
+  "Comment": "Doosri Raay RecoveryCase: Extract -> ConfirmFields -> Build -> Call1930 -> NCRPFiled -> MRMDecision -> (MRMTask) -> Done. Human steps are ladder-task .waitForTaskToken with TimeoutSecondsPath from $.timeouts; ConfirmFields and NCRPFiled loop back exactly once after a timeout via $.attempts. Every recovery-agent call passes {action, circleId, caseId} and keeps the execution state via ResultPath. Input: {circleId, caseId, timeouts:{confirm, call1930, ncrp, mrm}}.",
+  "StartAt": "Init",
+  "States": {
+    "Init": {
+      "Type": "Pass",
+      "Result": { "confirm": 0, "ncrp": 0 },
+      "ResultPath": "$.attempts",
+      "Next": "Extract"
+    },
+    "Extract": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "Strands agent: vision extraction of UTR/amount/payee/time, validated in code; writes `extracted` on the CASE item and sets status awaiting_confirmation.",
+      "Parameters": {
+        "FunctionName": "${RecoveryAgentFunctionArn}",
+        "Payload": {
+          "action": "extract",
+          "circleId.$": "$.circleId",
+          "caseId.$": "$.caseId"
+        }
+      },
+      "ResultPath": "$.extract",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "ThrottlingException",
+            "ServiceUnavailableException",
+            "ModelTimeoutException",
+            "ModelNotReadyException",
+            "ModelErrorException",
+            "BedrockError",
+            "BedrockThrottlingException"
+          ],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 2,
+          "BackoffRate": 2
+        },
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "Failed"
+        }
+      ],
+      "Next": "ConfirmFields"
+    },
+    "ConfirmFields": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+      "Comment": "User confirms or corrects every extracted field beside the screenshot. Output {outcome: confirmed, txns: [...]}.",
+      "Parameters": {
+        "FunctionName": "${LadderTaskFunctionArn}",
+        "Payload": {
+          "kind": "confirm_fields",
+          "assigneeRole": "guardian1",
+          "circleId.$": "$.circleId",
+          "caseId.$": "$.caseId",
+          "attempt.$": "$.attempts.confirm",
+          "wait": true,
+          "taskToken.$": "$$.Task.Token"
+        }
+      },
+      "TimeoutSecondsPath": "$.timeouts.confirm",
+      "ResultPath": "$.confirm",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.Timeout"],
+          "ResultPath": "$.error",
+          "Next": "ConfirmAttemptCheck"
+        },
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "Failed"
+        }
+      ],
+      "Next": "Build"
+    },
+    "ConfirmAttemptCheck": {
+      "Type": "Choice",
+      "Comment": "First timeout -> reminder and one more wait; second timeout -> Failed.",
+      "Choices": [
+        {
+          "Variable": "$.attempts.confirm",
+          "NumericLessThan": 1,
+          "Next": "ConfirmFieldsReminder"
+        }
+      ],
+      "Default": "Failed"
+    },
+    "ConfirmFieldsReminder": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "Informational guardian task + push: 'the case is waiting for your confirmation'. No token.",
+      "Parameters": {
+        "FunctionName": "${LadderTaskFunctionArn}",
+        "Payload": {
+          "kind": "confirm_fields",
+          "reminder": true,
+          "assigneeRole": "guardian1",
+          "circleId.$": "$.circleId",
+          "caseId.$": "$.caseId",
+          "wait": false
+        }
+      },
+      "ResultPath": "$.confirmReminder",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "IncrementConfirmAttempts"
+    },
+    "IncrementConfirmAttempts": {
+      "Type": "Pass",
+      "Parameters": {
+        "confirm.$": "States.MathAdd($.attempts.confirm, 1)",
+        "ncrp.$": "$.attempts.ncrp"
+      },
+      "ResultPath": "$.attempts",
+      "Next": "ConfirmFields"
+    },
+    "Build": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "Templates + LLM narrative -> artifacts (1930 script, NCRP narrative, freeze letter, e-Zero FIR threshold); status awaiting_1930.",
+      "Parameters": {
+        "FunctionName": "${RecoveryAgentFunctionArn}",
+        "Payload": {
+          "action": "build",
+          "circleId.$": "$.circleId",
+          "caseId.$": "$.caseId"
+        }
+      },
+      "ResultPath": "$.build",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "ThrottlingException",
+            "ServiceUnavailableException",
+            "ModelTimeoutException",
+            "ModelNotReadyException",
+            "ModelErrorException",
+            "BedrockError",
+            "BedrockThrottlingException"
+          ],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 2,
+          "BackoffRate": 2
+        },
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "Failed"
+        }
+      ],
+      "Next": "Call1930"
+    },
+    "Call1930": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+      "Comment": "'Call 1930 now, read this script'. Output {outcome: done|later}.",
+      "Parameters": {
+        "FunctionName": "${LadderTaskFunctionArn}",
+        "Payload": {
+          "kind": "call_1930",
+          "assigneeRole": "guardian1",
+          "circleId.$": "$.circleId",
+          "caseId.$": "$.caseId",
+          "wait": true,
+          "taskToken.$": "$$.Task.Token"
+        }
+      },
+      "TimeoutSecondsPath": "$.timeouts.call1930",
+      "ResultPath": "$.call1930",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.Timeout"],
+          "ResultPath": "$.error",
+          "Next": "Escalate1930"
+        },
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "Failed"
+        }
+      ],
+      "Next": "Call1930Outcome"
+    },
+    "Call1930Outcome": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "And": [
+            { "Variable": "$.call1930.outcome", "IsPresent": true },
+            { "Variable": "$.call1930.outcome", "StringEquals": "done" }
+          ],
+          "Next": "NCRPFiled"
+        }
+      ],
+      "Default": "Escalate1930"
+    },
+    "Escalate1930": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "'later' or timeout: hand the 1930 call to guardian2 (informational task, no wait), then continue to NCRP.",
+      "Parameters": {
+        "FunctionName": "${LadderTaskFunctionArn}",
+        "Payload": {
+          "kind": "call_1930",
+          "escalation": true,
+          "assigneeRole": "guardian2",
+          "circleId.$": "$.circleId",
+          "caseId.$": "$.caseId",
+          "wait": false
+        }
+      },
+      "ResultPath": "$.escalate1930",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "NCRPFiled"
+    },
+    "NCRPFiled": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+      "Comment": "'Enter the 14-digit NCRP acknowledgement number'. Output {outcome: filed, ackNo: 329...} (validated by the API before SendTaskSuccess).",
+      "Parameters": {
+        "FunctionName": "${LadderTaskFunctionArn}",
+        "Payload": {
+          "kind": "ncrp_filed",
+          "assigneeRole": "guardian1",
+          "circleId.$": "$.circleId",
+          "caseId.$": "$.caseId",
+          "attempt.$": "$.attempts.ncrp",
+          "wait": true,
+          "taskToken.$": "$$.Task.Token"
+        }
+      },
+      "TimeoutSecondsPath": "$.timeouts.ncrp",
+      "ResultPath": "$.ncrp",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.Timeout"],
+          "ResultPath": "$.error",
+          "Next": "NCRPAttemptCheck"
+        },
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "Failed"
+        }
+      ],
+      "Next": "MRMDecision"
+    },
+    "NCRPAttemptCheck": {
+      "Type": "Choice",
+      "Comment": "First timeout -> escalate to guardian2 and wait once more; second timeout -> Failed.",
+      "Choices": [
+        {
+          "Variable": "$.attempts.ncrp",
+          "NumericLessThan": 1,
+          "Next": "EscalateNCRP"
+        }
+      ],
+      "Default": "Failed"
+    },
+    "EscalateNCRP": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${LadderTaskFunctionArn}",
+        "Payload": {
+          "kind": "ncrp_filed",
+          "escalation": true,
+          "assigneeRole": "guardian2",
+          "circleId.$": "$.circleId",
+          "caseId.$": "$.caseId",
+          "wait": false
+        }
+      },
+      "ResultPath": "$.escalateNcrp",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "IncrementNcrpAttempts"
+    },
+    "IncrementNcrpAttempts": {
+      "Type": "Pass",
+      "Parameters": {
+        "confirm.$": "$.attempts.confirm",
+        "ncrp.$": "States.MathAdd($.attempts.ncrp, 1)"
+      },
+      "ResultPath": "$.attempts",
+      "Next": "NCRPFiled"
+    },
+    "MRMDecision": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "Rule code: <= 50k single account no FIR; > 50k FIR mandatory. Returns {eligible, firRequired, checklist}; stored in artifacts.mrm.",
+      "Parameters": {
+        "FunctionName": "${RecoveryAgentFunctionArn}",
+        "Payload": {
+          "action": "mrm",
+          "circleId.$": "$.circleId",
+          "caseId.$": "$.caseId"
+        }
+      },
+      "ResultPath": "$.mrm",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "Failed"
+        }
+      ],
+      "Next": "MRMChoice"
+    },
+    "MRMChoice": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "And": [
+            { "Variable": "$.mrm.Payload.eligible", "IsPresent": true },
+            { "Variable": "$.mrm.Payload.eligible", "BooleanEquals": true }
+          ],
+          "Next": "MRMTask"
+        }
+      ],
+      "Default": "Done"
+    },
+    "MRMTask": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+      "Comment": "MRM checklist task (PAN, bank details, indemnity bond, FIR if required). A timeout is non-fatal.",
+      "Parameters": {
+        "FunctionName": "${LadderTaskFunctionArn}",
+        "Payload": {
+          "kind": "mrm",
+          "assigneeRole": "guardian1",
+          "circleId.$": "$.circleId",
+          "caseId.$": "$.caseId",
+          "wait": true,
+          "taskToken.$": "$$.Task.Token"
+        }
+      },
+      "TimeoutSecondsPath": "$.timeouts.mrm",
+      "ResultPath": "$.mrmTask",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.Timeout"],
+          "ResultPath": "$.mrmTimeout",
+          "Next": "Done"
+        },
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "Failed"
+        }
+      ],
+      "Next": "Done"
+    },
+    "Done": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "Sets CASE status filed.",
+      "Parameters": {
+        "FunctionName": "${RecoveryAgentFunctionArn}",
+        "Payload": {
+          "action": "finalize",
+          "circleId.$": "$.circleId",
+          "caseId.$": "$.caseId"
+        }
+      },
+      "ResultPath": "$.finalize",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "Failed"
+        }
+      ],
+      "Next": "Filed"
+    },
+    "Filed": {
+      "Type": "Succeed"
+    },
+    "Failed": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "Sets CASE status error with the caught error ($.error is always set by the Catch that led here).",
+      "Parameters": {
+        "FunctionName": "${RecoveryAgentFunctionArn}",
+        "Payload": {
+          "action": "fail",
+          "circleId.$": "$.circleId",
+          "caseId.$": "$.caseId",
+          "error.$": "$.error"
+        }
+      },
+      "ResultPath": "$.failResult",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "CaseFailed"
+    },
+    "CaseFailed": {
+      "Type": "Fail",
+      "Error": "CaseFailed",
+      "Cause": "Recovery case ended in error; see $.error in the execution input history and the CASE item status."
+    }
+  }
+}

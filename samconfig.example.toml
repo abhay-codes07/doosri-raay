@@ -1,0 +1,47 @@
+# Doosri Raay - example SAM CLI configuration.
+# Copy to ./samconfig.toml (git-ignored) and edit parameter_overrides, or run `make deploy-guided`
+# once and let SAM write it for you.
+#
+#   cp samconfig.example.toml samconfig.toml
+#   make deploy
+#
+# Notes
+# - `use_container = true` builds the Python functions inside the official arm64 Lambda build image
+#   so native wheels (cryptography for web-push, etc.) match the runtime. Docker must be running.
+# - `resolve_s3 = true` lets SAM create/reuse a managed S3 bucket for the zip artifacts.
+# - `resolve_image_repos = true` lets SAM create an ECR repository for RecoveryAgentFunction
+#   (container image). If your SAM CLI is too old for that flag, delete it and set instead:
+#     image_repositories = ["RecoveryAgentFunction=<account>.dkr.ecr.ap-south-1.amazonaws.com/doosriraay-recovery-agent"]
+#   after creating the repo with `aws ecr create-repository --repository-name doosriraay-recovery-agent`.
+# - Never put secrets here. The VAPID private key goes to SSM (make set-vapid); only the public
+#   key is a stack parameter.
+
+version = 0.1
+
+[default.global.parameters]
+stack_name = "doosriraay"
+region = "ap-south-1"
+
+[default.build.parameters]
+template_file = "infra/template.yaml"
+use_container = true
+cached = true
+parallel = true
+
+[default.validate.parameters]
+template_file = "infra/template.yaml"
+lint = true
+
+[default.deploy.parameters]
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = false
+fail_on_empty_changeset = false
+resolve_s3 = true
+resolve_image_repos = true
+# Set AppOrigin to the Amplify URL once you have it (no trailing slash); localhost for dev.
+# BudgetEmail enables the USD 20 / USD 50 monthly cost alarms. VapidPublicKey is the public half
+# from `npx web-push generate-vapid-keys`.
+parameter_overrides = "AppOrigin=\"http://localhost:5173\" DemoTimeouts=\"1\" DemoSeedEnabled=\"1\" DailyQuota=\"30\" BudgetEmail=\"\" VapidPublicKey=\"\" VapidSubject=\"mailto:team@example.com\" ModelId=\"global.anthropic.claude-sonnet-4-6\" FallbackModelId=\"global.anthropic.claude-haiku-4-5-20251001-v1:0\" BedrockRegion=\"ap-south-1\" PollyVoiceId=\"Kajal\""
+
+[default.delete.parameters]
+no_prompts = true

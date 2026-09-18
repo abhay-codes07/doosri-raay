@@ -1,0 +1,94 @@
+{
+  "Comment": "Doosri Raay Watch: one execution per parent per deadline. Waits until $.deadline, checks for a CHECKIN item written after $.startedAt (or holidayMode), and starts the Ladder asynchronously if none exists. Input: {circleId, parentSub, deadline, startedAt, timeouts:{rung}}.",
+  "StartAt": "WaitForDeadline",
+  "States": {
+    "WaitForDeadline": {
+      "Type": "Wait",
+      "TimestampPath": "$.deadline",
+      "Next": "CheckCheckin"
+    },
+    "CheckCheckin": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${WatchCheckFunctionArn}",
+        "Payload": {
+          "circleId.$": "$.circleId",
+          "parentSub.$": "$.parentSub",
+          "startedAt.$": "$.startedAt",
+          "deadline.$": "$.deadline"
+        }
+      },
+      "ResultPath": "$.check",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "IsCheckedIn"
+    },
+    "IsCheckedIn": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Or": [
+            {
+              "And": [
+                { "Variable": "$.check.Payload.checkedIn", "IsPresent": true },
+                { "Variable": "$.check.Payload.checkedIn", "BooleanEquals": true }
+              ]
+            },
+            {
+              "And": [
+                { "Variable": "$.check.Payload.holidayMode", "IsPresent": true },
+                { "Variable": "$.check.Payload.holidayMode", "BooleanEquals": true }
+              ]
+            }
+          ],
+          "Next": "AllGood"
+        }
+      ],
+      "Default": "StartLadder"
+    },
+    "StartLadder": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::states:startExecution",
+      "Parameters": {
+        "StateMachineArn": "${LadderSmArn}",
+        "Input": {
+          "AWS_STEP_FUNCTIONS_STARTED_BY_EXECUTION_ID.$": "$$.Execution.Id",
+          "circleId.$": "$.circleId",
+          "parentSub.$": "$.parentSub",
+          "reason": "missed_checkin",
+          "timeouts.$": "$.timeouts"
+        }
+      },
+      "ResultPath": "$.ladder",
+      "Retry": [
+        {
+          "ErrorEquals": ["StepFunctions.ServiceException", "StepFunctions.SdkClientException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "LadderStarted"
+    },
+    "LadderStarted": {
+      "Type": "Succeed",
+      "Comment": "No check-in by the deadline; the Ladder execution is now the second-signal path."
+    },
+    "AllGood": {
+      "Type": "Succeed",
+      "Comment": "Parent opened the tile (or holiday mode is on). Nothing else happens."
+    }
+  }
+}

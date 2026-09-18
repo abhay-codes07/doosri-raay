@@ -1,0 +1,973 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Doosri Raay - passive isolation ladder + recovery case manager for Indian families.
+  Region-agnostic, intended for ap-south-1. All intrinsics use the long form (Fn::Sub / Ref /
+  Fn::GetAtt) so the file stays plain-YAML parsable (see infra/validate_asl.py).
+
+# ---------------------------------------------------------------------------------------------
+# Parameters
+# ---------------------------------------------------------------------------------------------
+Parameters:
+  AppOrigin:
+    Type: String
+    Default: http://localhost:5173
+    Description: Browser origin allowed by API Gateway CORS and the S3 upload bucket CORS (the Amplify URL in prod).
+  ModelId:
+    Type: String
+    Default: global.anthropic.claude-sonnet-4-6
+    Description: Primary Bedrock model / inference profile id.
+  FallbackModelId:
+    Type: String
+    Default: global.anthropic.claude-haiku-4-5-20251001-v1:0
+    Description: Fallback Bedrock model / inference profile id (used on throttling / access errors).
+  BedrockRegion:
+    Type: String
+    Default: ap-south-1
+    Description: Region the Lambdas call Bedrock in.
+  DemoTimeouts:
+    Type: String
+    Default: "1"
+    AllowedValues: ["0", "1"]
+    Description: "1 = 45-second Watch deadlines and ladder rung timeouts (demo); 0 = production timeouts."
+  DemoSeedEnabled:
+    Type: String
+    Default: "1"
+    AllowedValues: ["0", "1"]
+    Description: "1 = POST /demo/seed is enabled."
+  DailyQuota:
+    Type: Number
+    Default: 30
+    MinValue: 1
+    Description: Per-user daily cap on LLM-backed routes (/analyze, /cases, /puchho).
+  VapidPublicKey:
+    Type: String
+    Default: ""
+    Description: VAPID public key (base64url). Generate with `npx web-push generate-vapid-keys`.
+  VapidSubject:
+    Type: String
+    Default: mailto:team@example.com
+    Description: "VAPID subject (a mailto or https URL)."
+  BudgetEmail:
+    Type: String
+    Default: ""
+    Description: E-mail for the USD 20 / USD 50 monthly AWS Budgets alerts. Leave empty to skip creating budgets.
+  PollyVoiceId:
+    Type: String
+    Default: Kajal
+    Description: Polly voice for the Puchho Hindi clip (neural hi-IN; code falls back to Aditi).
+
+Conditions:
+  HasBudgetEmail:
+    Fn::Not:
+      - Fn::Equals:
+          - Ref: BudgetEmail
+          - ""
+
+# ---------------------------------------------------------------------------------------------
+# Globals (Runtime/Handler are set per function because RecoveryAgentFunction is an image)
+# ---------------------------------------------------------------------------------------------
+Globals:
+  Function:
+    Architectures:
+      - arm64
+    Tracing: Active
+
+Resources:
+  # -------------------------------------------------------------------------------------------
+  # Data: DynamoDB single table (docs/DATA_MODEL.md)
+  # -------------------------------------------------------------------------------------------
+  Table:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: GSI1PK
+          AttributeType: S
+        - AttributeName: GSI1SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1
+          KeySchema:
+            - AttributeName: GSI1PK
+              KeyType: HASH
+            - AttributeName: GSI1SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+
+  # -------------------------------------------------------------------------------------------
+  # Storage: screenshot upload bucket (presigned POST, hardened)
+  # -------------------------------------------------------------------------------------------
+  UploadBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins:
+              - Ref: AppOrigin
+            AllowedMethods:
+              - GET
+              - PUT
+              - POST
+              - HEAD
+            AllowedHeaders:
+              - "*"
+            ExposedHeaders:
+              - ETag
+            MaxAge: 3000
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireCircleScreenshots
+            Status: Enabled
+            Prefix: circles/
+            ExpirationInDays: 7
+          - Id: AbortIncompleteMultipart
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+
+  UploadBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: UploadBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource:
+              - Fn::GetAtt: [UploadBucket, Arn]
+              - Fn::Sub: "${UploadBucket.Arn}/*"
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+
+  # -------------------------------------------------------------------------------------------
+  # Identity: Cognito user pool (email sign-in) + public app client
+  # -------------------------------------------------------------------------------------------
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName:
+        Fn::Sub: "${AWS::StackName}-users"
+      UsernameAttributes:
+        - email
+      UsernameConfiguration:
+        CaseSensitive: false
+      AutoVerifiedAttributes:
+        - email
+      MfaConfiguration: "OFF"
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: false
+          RequireLowercase: false
+          RequireNumbers: false
+          RequireSymbols: false
+          TemporaryPasswordValidityDays: 7
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Required: true
+          Mutable: true
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+      DeletionProtection: INACTIVE
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName:
+        Fn::Sub: "${AWS::StackName}-web"
+      UserPoolId:
+        Ref: UserPool
+      GenerateSecret: false
+      # ALLOW_USER_PASSWORD_AUTH is here for the demo / seed script; SRP is what the PWA uses.
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      SupportedIdentityProviders:
+        - COGNITO
+      PreventUserExistenceErrors: ENABLED
+      EnableTokenRevocation: true
+      TokenValidityUnits:
+        IdToken: hours
+        AccessToken: hours
+        RefreshToken: days
+      IdTokenValidity: 1
+      AccessTokenValidity: 1
+      RefreshTokenValidity: 30
+
+  # -------------------------------------------------------------------------------------------
+  # API: HTTP API with Cognito JWT authorizer on every route, stage-level throttling
+  # -------------------------------------------------------------------------------------------
+  HttpApiAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Sub: "/aws/apigateway/${AWS::StackName}-http-api"
+      RetentionInDays: 14
+
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins:
+          - Ref: AppOrigin
+        AllowHeaders:
+          - authorization
+          - content-type
+        AllowMethods:
+          - GET
+          - POST
+          - OPTIONS
+        MaxAge: 600
+      Auth:
+        DefaultAuthorizer: CognitoJwt
+        Authorizers:
+          CognitoJwt:
+            IdentitySource: $request.header.Authorization
+            JwtConfiguration:
+              issuer:
+                Fn::Sub: "https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}"
+              audience:
+                - Ref: UserPoolClient
+      DefaultRouteSettings:
+        ThrottlingRateLimit: 5
+        ThrottlingBurstLimit: 10
+      AccessLogSettings:
+        DestinationArn:
+          Fn::GetAtt: [HttpApiAccessLogGroup, Arn]
+        Format: '{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","requestTime":"$context.requestTime","routeKey":"$context.routeKey","status":"$context.status","latency":"$context.responseLatency","error":"$context.error.message"}'
+
+  # -------------------------------------------------------------------------------------------
+  # Secrets placeholder: VAPID private key lives in SSM. CloudFormation cannot create a
+  # SecureString, so we create a String placeholder and the team overwrites it once:
+  #   aws ssm put-parameter --name /doosriraay/<stack>/vapid-private-key \
+  #       --type SecureString --overwrite --value "<private key>"
+  # The Lambdas read it with WithDecryption=True, which works for both String and SecureString.
+  # -------------------------------------------------------------------------------------------
+  VapidPrivateKeyParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name:
+        Fn::Sub: "/doosriraay/${AWS::StackName}/vapid-private-key"
+      Type: String
+      Value: REPLACE_ME
+      Description: Placeholder. Overwrite as SecureString with the AWS CLI (see infra/README.md).
+
+  # -------------------------------------------------------------------------------------------
+  # Lambda: API (thin handlers, one function for every route)
+  # -------------------------------------------------------------------------------------------
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: api.app.handler
+      Runtime: python3.12
+      Timeout: 29
+      MemorySize: 512
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: Table
+          UPLOAD_BUCKET:
+            Ref: UploadBucket
+          APP_ORIGIN:
+            Ref: AppOrigin
+          BEDROCK_REGION:
+            Ref: BedrockRegion
+          MODEL_ID:
+            Ref: ModelId
+          FALLBACK_MODEL_ID:
+            Ref: FallbackModelId
+          WATCH_SM_ARN:
+            Ref: WatchStateMachine
+          LADDER_SM_ARN:
+            Ref: LadderStateMachine
+          RECOVERY_SM_ARN:
+            Ref: RecoveryStateMachine
+          CLASSIFY_FUNCTION_NAME:
+            Ref: ClassifyWorkerFunction
+          DEMO_TIMEOUTS:
+            Ref: DemoTimeouts
+          DEMO_SEED_ENABLED:
+            Ref: DemoSeedEnabled
+          DAILY_QUOTA:
+            Ref: DailyQuota
+          CHECKIN_DEADLINE_HOUR_DEFAULT: "11"
+          VAPID_PUBLIC_KEY:
+            Ref: VapidPublicKey
+          VAPID_PRIVATE_KEY_PARAM:
+            Ref: VapidPrivateKeyParameter
+          VAPID_SUBJECT:
+            Ref: VapidSubject
+          POLLY_VOICE_ID:
+            Ref: PollyVoiceId
+          USER_POOL_ID:
+            Ref: UserPool
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName:
+              Ref: Table
+        - Statement:
+            - Sid: UploadBucketObjects
+              Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:PutObject   # also what a presigned POST is signed with
+              Resource:
+                Fn::Sub: "${UploadBucket.Arn}/*"
+            - Sid: StartStateMachines
+              Effect: Allow
+              Action:
+                - states:StartExecution
+              Resource:
+                - Ref: WatchStateMachine
+                - Ref: LadderStateMachine
+                - Ref: RecoveryStateMachine
+            - Sid: ManageExecutions
+              Effect: Allow
+              Action:
+                - states:StopExecution
+                - states:DescribeExecution
+              Resource:
+                - Fn::Sub: "arn:${AWS::Partition}:states:${AWS::Region}:${AWS::AccountId}:execution:${WatchStateMachine.Name}:*"
+                - Fn::Sub: "arn:${AWS::Partition}:states:${AWS::Region}:${AWS::AccountId}:execution:${LadderStateMachine.Name}:*"
+                - Fn::Sub: "arn:${AWS::Partition}:states:${AWS::Region}:${AWS::AccountId}:execution:${RecoveryStateMachine.Name}:*"
+            # SendTaskSuccess / SendTaskFailure do not support resource-level permissions
+            # (the task token is the credential), hence Resource "*".
+            - Sid: TaskCallbacks
+              Effect: Allow
+              Action:
+                - states:SendTaskSuccess
+                - states:SendTaskFailure
+              Resource: "*"
+            - Sid: InvokeClassifyWorkerAsync
+              Effect: Allow
+              Action:
+                - lambda:InvokeFunction
+              Resource:
+                Fn::GetAtt: [ClassifyWorkerFunction, Arn]
+            # Polly SynthesizeSpeech has no resource-level permissions, hence Resource "*".
+            - Sid: PollyPuchhoClip
+              Effect: Allow
+              Action:
+                - polly:SynthesizeSpeech
+              Resource: "*"
+            - Sid: ReadVapidPrivateKey
+              Effect: Allow
+              Action:
+                - ssm:GetParameter
+              Resource:
+                Fn::Sub: "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${VapidPrivateKeyParameter}"
+            # Decrypt is only usable through SSM (ViaService) and only matters once the parameter
+            # is overwritten as a SecureString; the aws/ssm managed key has no ARN we can reference.
+            - Sid: DecryptViaSsmOnly
+              Effect: Allow
+              Action:
+                - kms:Decrypt
+              Resource: "*"
+              Condition:
+                StringEquals:
+                  kms:ViaService:
+                    Fn::Sub: "ssm.${AWS::Region}.amazonaws.com"
+            - Sid: LookupCognitoUsers
+              Effect: Allow
+              Action:
+                - cognito-idp:AdminGetUser
+              Resource:
+                Fn::GetAtt: [UserPool, Arn]
+      Events:
+        PostProfile:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: HttpApi
+            Path: /profile
+            Method: POST
+        GetProfile:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: HttpApi
+            Path: /profile
+            Method: GET
+        PostCircles:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: HttpApi
+            Path: /circles
+            Method: POST
+        PostCirclesJoin:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: HttpApi
+            Path: /circles/join
+            Method: POST
+        PostCheckin:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: HttpApi
+            Path: /checkin
+            Method: POST
+        PostSos:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: HttpApi
+            Path: /sos
+            Method: POST
+        GetTasks:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: HttpApi
+            Path: /tasks
+            Method: GET
+        PostTaskComplete:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: HttpApi
+            Path: /tasks/{taskId}/complete
+            Method: POST
+        PostUploads:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: HttpApi
+            Path: /uploads
+            Method: POST
+        PostAnalyze:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: HttpApi
+            Path: /analyze
+            Method: POST
+        GetReport:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: HttpApi
+            Path: /reports/{reportId}
+            Method: GET
+        PostCases:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: HttpApi
+            Path: /cases
+            Method: POST
+        GetCases:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: HttpApi
+            Path: /cases
+            Method: GET
+        GetCase:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: HttpApi
+            Path: /cases/{caseId}
+            Method: GET
+        PostPuchho:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: HttpApi
+            Path: /puchho
+            Method: POST
+        GetPuchho:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: HttpApi
+            Path: /puchho/{taskId}
+            Method: GET
+        GetPushPublicKey:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: HttpApi
+            Path: /push/public-key
+            Method: GET
+        PostPushSubscribe:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: HttpApi
+            Path: /push/subscribe
+            Method: POST
+        PostDemoSeed:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: HttpApi
+            Path: /demo/seed
+            Method: POST
+        GetDemoConfig:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: HttpApi
+            Path: /demo/config
+            Method: GET
+
+  # -------------------------------------------------------------------------------------------
+  # Lambda: classifier worker (async, Bedrock Converse with tool-use)
+  # -------------------------------------------------------------------------------------------
+  ClassifyWorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: classify_worker.app.handler
+      Runtime: python3.12
+      Timeout: 60
+      MemorySize: 1024
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: Table
+          UPLOAD_BUCKET:
+            Ref: UploadBucket
+          BEDROCK_REGION:
+            Ref: BedrockRegion
+          MODEL_ID:
+            Ref: ModelId
+          FALLBACK_MODEL_ID:
+            Ref: FallbackModelId
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName:
+              Ref: Table
+        - Statement:
+            - Sid: ReadScreenshots
+              Effect: Allow
+              Action:
+                - s3:GetObject
+              Resource:
+                Fn::Sub: "${UploadBucket.Arn}/*"
+            # Global inference profiles (global.anthropic.*) route to foundation models in any
+            # commercial region, so the caller needs InvokeModel on the profile ARN *and* on the
+            # foundation-model ARNs in every candidate region. Resource "*" keeps the demo
+            # working for both the primary and the fallback profile. To tighten, replace with:
+            #   - arn:${AWS::Partition}:bedrock:*::foundation-model/anthropic.*
+            #   - arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:inference-profile/*
+            - Sid: BedrockInvoke
+              Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+                - bedrock:InvokeModelWithResponseStream
+              Resource: "*"
+
+  # -------------------------------------------------------------------------------------------
+  # Lambda: ladder helpers (task sender with task token, watch check, status)
+  # -------------------------------------------------------------------------------------------
+  LadderTaskFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: ladder.task.handler
+      Runtime: python3.12
+      Timeout: 30
+      MemorySize: 256
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: Table
+          VAPID_PUBLIC_KEY:
+            Ref: VapidPublicKey
+          VAPID_PRIVATE_KEY_PARAM:
+            Ref: VapidPrivateKeyParameter
+          VAPID_SUBJECT:
+            Ref: VapidSubject
+          DEMO_TIMEOUTS:
+            Ref: DemoTimeouts
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName:
+              Ref: Table
+        - Statement:
+            - Sid: ReadVapidPrivateKey
+              Effect: Allow
+              Action:
+                - ssm:GetParameter
+              Resource:
+                Fn::Sub: "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${VapidPrivateKeyParameter}"
+            # See ApiFunction: only usable via SSM, only relevant once the param is a SecureString.
+            - Sid: DecryptViaSsmOnly
+              Effect: Allow
+              Action:
+                - kms:Decrypt
+              Resource: "*"
+              Condition:
+                StringEquals:
+                  kms:ViaService:
+                    Fn::Sub: "ssm.${AWS::Region}.amazonaws.com"
+
+  WatchCheckFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: ladder.watch_check.handler
+      Runtime: python3.12
+      Timeout: 15
+      MemorySize: 256
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: Table
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName:
+              Ref: Table
+
+  LadderStatusFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: ladder.status.handler
+      Runtime: python3.12
+      Timeout: 15
+      MemorySize: 256
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: Table
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName:
+              Ref: Table
+
+  # -------------------------------------------------------------------------------------------
+  # Lambda: recovery agent (Strands, container image)
+  # arm64 keeps it consistent with the other functions; `sam build` passes --platform
+  # linux/arm64 to Docker (buildx/QEMU on x86 hosts). If the local image build fails, switch
+  # this one function to `Architectures: [x86_64]` - nothing else depends on it.
+  # -------------------------------------------------------------------------------------------
+  RecoveryAgentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Image
+      Timeout: 300
+      MemorySize: 2048
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: Table
+          UPLOAD_BUCKET:
+            Ref: UploadBucket
+          BEDROCK_REGION:
+            Ref: BedrockRegion
+          MODEL_ID:
+            Ref: ModelId
+          FALLBACK_MODEL_ID:
+            Ref: FallbackModelId
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName:
+              Ref: Table
+        - Statement:
+            - Sid: ReadScreenshots
+              Effect: Allow
+              Action:
+                - s3:GetObject
+              Resource:
+                Fn::Sub: "${UploadBucket.Arn}/*"
+            # Same reasoning as ClassifyWorkerFunction: global inference profiles need the
+            # foundation-model ARNs of every region they can route to.
+            - Sid: BedrockInvoke
+              Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+                - bedrock:InvokeModelWithResponseStream
+              Resource: "*"
+    Metadata:
+      Dockerfile: recovery_agent/Dockerfile
+      DockerContext: ../backend
+      DockerTag: v1
+
+  # -------------------------------------------------------------------------------------------
+  # Step Functions (Standard) - docs/STATE_MACHINES.md
+  # Vended logs go to /aws/vendedlogs/... so the console shows every state transition.
+  # -------------------------------------------------------------------------------------------
+  WatchLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Sub: "/aws/vendedlogs/states/${AWS::StackName}-watch"
+      RetentionInDays: 14
+
+  LadderLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Sub: "/aws/vendedlogs/states/${AWS::StackName}-ladder"
+      RetentionInDays: 14
+
+  RecoveryLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Sub: "/aws/vendedlogs/states/${AWS::StackName}-recovery"
+      RetentionInDays: 14
+
+  # Ladder: outsider escalation (rung 1 guardian1 -> rung 2 guardian2 -> rung 3 neighbour -> 112)
+  LadderStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Type: STANDARD
+      DefinitionUri: statemachines/ladder.asl.json
+      DefinitionSubstitutions:
+        LadderTaskFunctionArn:
+          Fn::GetAtt: [LadderTaskFunction, Arn]
+        LadderStatusFunctionArn:
+          Fn::GetAtt: [LadderStatusFunction, Arn]
+      Logging:
+        Level: ALL
+        IncludeExecutionData: true
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn:
+                Fn::GetAtt: [LadderLogGroup, Arn]
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName:
+              Ref: LadderTaskFunction
+        - LambdaInvokePolicy:
+            FunctionName:
+              Ref: LadderStatusFunction
+        # CloudWatch Logs delivery APIs used by Step Functions logging have no resource-level
+        # permissions (AWS-documented requirement), hence Resource "*".
+        - Statement:
+            - Sid: VendedLogs
+              Effect: Allow
+              Action:
+                - logs:CreateLogDelivery
+                - logs:GetLogDelivery
+                - logs:UpdateLogDelivery
+                - logs:DeleteLogDelivery
+                - logs:ListLogDeliveries
+                - logs:PutResourcePolicy
+                - logs:DescribeResourcePolicies
+                - logs:DescribeLogGroups
+              Resource: "*"
+
+  # Watch: one execution per parent per day; waits until the deadline, then checks the CHECKIN item.
+  WatchStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Type: STANDARD
+      DefinitionUri: statemachines/watch.asl.json
+      DefinitionSubstitutions:
+        WatchCheckFunctionArn:
+          Fn::GetAtt: [WatchCheckFunction, Arn]
+        LadderSmArn:
+          Ref: LadderStateMachine
+      Logging:
+        Level: ALL
+        IncludeExecutionData: true
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn:
+                Fn::GetAtt: [WatchLogGroup, Arn]
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName:
+              Ref: WatchCheckFunction
+        # Async states:startExecution (not .sync) only needs StartExecution on the target.
+        - StepFunctionsExecutionPolicy:
+            StateMachineName:
+              Fn::GetAtt: [LadderStateMachine, Name]
+        - Statement:
+            - Sid: VendedLogs
+              Effect: Allow
+              Action:
+                - logs:CreateLogDelivery
+                - logs:GetLogDelivery
+                - logs:UpdateLogDelivery
+                - logs:DeleteLogDelivery
+                - logs:ListLogDeliveries
+                - logs:PutResourcePolicy
+                - logs:DescribeResourcePolicies
+                - logs:DescribeLogGroups
+              Resource: "*"
+
+  # RecoveryCase: extract -> confirm -> build -> 1930 -> NCRP -> MRM -> filed
+  RecoveryStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Type: STANDARD
+      DefinitionUri: statemachines/recovery.asl.json
+      DefinitionSubstitutions:
+        LadderTaskFunctionArn:
+          Fn::GetAtt: [LadderTaskFunction, Arn]
+        RecoveryAgentFunctionArn:
+          Fn::GetAtt: [RecoveryAgentFunction, Arn]
+      Logging:
+        Level: ALL
+        IncludeExecutionData: true
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn:
+                Fn::GetAtt: [RecoveryLogGroup, Arn]
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName:
+              Ref: LadderTaskFunction
+        - LambdaInvokePolicy:
+            FunctionName:
+              Ref: RecoveryAgentFunction
+        - Statement:
+            - Sid: VendedLogs
+              Effect: Allow
+              Action:
+                - logs:CreateLogDelivery
+                - logs:GetLogDelivery
+                - logs:UpdateLogDelivery
+                - logs:DeleteLogDelivery
+                - logs:ListLogDeliveries
+                - logs:PutResourcePolicy
+                - logs:DescribeResourcePolicies
+                - logs:DescribeLogGroups
+              Resource: "*"
+
+  # -------------------------------------------------------------------------------------------
+  # Cost guards: AWS Budgets (only when BudgetEmail is set)
+  # -------------------------------------------------------------------------------------------
+  Budget20:
+    Type: AWS::Budgets::Budget
+    Condition: HasBudgetEmail
+    Properties:
+      Budget:
+        BudgetName:
+          Fn::Sub: "${AWS::StackName}-usd20"
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        BudgetLimit:
+          Amount: 20
+          Unit: USD
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 100
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address:
+                Ref: BudgetEmail
+
+  Budget50:
+    Type: AWS::Budgets::Budget
+    Condition: HasBudgetEmail
+    Properties:
+      Budget:
+        BudgetName:
+          Fn::Sub: "${AWS::StackName}-usd50"
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        BudgetLimit:
+          Amount: 50
+          Unit: USD
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 100
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address:
+                Ref: BudgetEmail
+
+# ---------------------------------------------------------------------------------------------
+# Outputs (feed these into the Amplify env vars, see infra/README.md)
+# ---------------------------------------------------------------------------------------------
+Outputs:
+  ApiUrl:
+    Description: HTTP API base URL (VITE_API_URL)
+    Value:
+      Fn::Sub: "https://${HttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}"
+  UserPoolId:
+    Description: Cognito user pool id (VITE_USER_POOL_ID)
+    Value:
+      Ref: UserPool
+  UserPoolClientId:
+    Description: Cognito app client id (VITE_USER_POOL_CLIENT_ID)
+    Value:
+      Ref: UserPoolClient
+  TableName:
+    Description: DynamoDB table
+    Value:
+      Ref: Table
+  UploadBucket:
+    Description: S3 upload bucket
+    Value:
+      Ref: UploadBucket
+  WatchSmArn:
+    Description: Watch state machine ARN
+    Value:
+      Ref: WatchStateMachine
+  LadderSmArn:
+    Description: Ladder state machine ARN
+    Value:
+      Ref: LadderStateMachine
+  RecoverySmArn:
+    Description: RecoveryCase state machine ARN
+    Value:
+      Ref: RecoveryStateMachine
+  VapidPrivateKeyParameterName:
+    Description: SSM parameter to overwrite as SecureString with the VAPID private key
+    Value:
+      Ref: VapidPrivateKeyParameter
+  Region:
+    Description: Deployment region (VITE_REGION)
+    Value:
+      Ref: AWS::Region
