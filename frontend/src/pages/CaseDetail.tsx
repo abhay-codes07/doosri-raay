@@ -2,7 +2,7 @@ import { useCallback, useId, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useApi } from '../api/context';
 import { describeError } from '../api/client';
-import type { Case, CompleteTaskBody, Txn } from '../api/types';
+import type { Case, CompleteTaskBody, RuleSource, Txn } from '../api/types';
 import { TaskCard } from '../components/TaskCard';
 import { CopyButton, ErrorBox, Section, Spinner } from '../components/ui';
 import { usePoll, useProfile } from '../hooks/useProfile';
@@ -207,10 +207,11 @@ export function CaseDetailPage() {
             >
               <pre className="pre">{a.ncrpNarrative}</pre>
               <p className="mt">
-                <a className="btn" href="https://cybercrime.gov.in" target="_blank" rel="noreferrer">
+                <a className="btn" href={a.ncrp?.portal ?? 'https://cybercrime.gov.in'} target="_blank" rel="noreferrer">
                   {t('openNcrp')}
                 </a>
               </p>
+              <SourceLine source={a.ncrp?.source} caveat={a.ncrp?.caveat} />
             </Section>
           )}
 
@@ -231,13 +232,7 @@ export function CaseDetailPage() {
                   : t('ezeroNoThreshold', { state: a.ezeroFir.state ?? c.state ?? '' })}
               </p>
               {a.ezeroFir.note && <p className="muted">{a.ezeroFir.note}</p>}
-              {a.ezeroFir.sourceUrl && (
-                <p>
-                  <a href={a.ezeroFir.sourceUrl} target="_blank" rel="noreferrer">
-                    {t('source')}
-                  </a>
-                </p>
-              )}
+              <SourceLine source={a.ezeroFir.source ?? (a.ezeroFir.sourceUrl ? { url: a.ezeroFir.sourceUrl } : undefined)} caveat={a.ezeroFir.caveat} />
             </Section>
           )}
 
@@ -262,6 +257,7 @@ export function CaseDetailPage() {
                   {t('mrmPortal')}
                 </a>
               </p>
+              <SourceLine source={a.mrm.source} caveat={a.mrm.caveat} />
             </Section>
           )}
         </div>
@@ -422,5 +418,36 @@ function ConfirmTxns({
         {!taskId && <span className="muted small">{t('loading')}</span>}
       </div>
     </Section>
+  );
+}
+
+/** "Source: outlet, date" (linked) plus the rule's caveat, under the rule-based cards. */
+function SourceLine({ source, caveat }: { source?: RuleSource; caveat?: string }) {
+  const { t } = useT();
+  const outlet = typeof source?.outlet === 'string' ? source.outlet.trim() : '';
+  const date = typeof source?.date === 'string' ? source.date.trim() : '';
+  const url = typeof source?.url === 'string' && /^https?:\/\//.test(source.url) ? source.url : '';
+  const label = [outlet, date].filter(Boolean).join(', ') || (url ? url.replace(/^https?:\/\//, '').split('/')[0] : '');
+  if (!label && !caveat) return null;
+  return (
+    <div className="source-line small muted">
+      {label && (
+        <p style={{ margin: '8px 0 0' }}>
+          {t('source')}:{' '}
+          {url ? (
+            <a href={url} target="_blank" rel="noreferrer">
+              {label}
+            </a>
+          ) : (
+            label
+          )}
+        </p>
+      )}
+      {caveat && (
+        <p style={{ margin: '4px 0 0' }} lang="en">
+          {caveat}
+        </p>
+      )}
+    </div>
   );
 }

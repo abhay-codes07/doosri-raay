@@ -244,11 +244,20 @@ export type CaseStatus =
   | 'filed'
   | 'error';
 
+/** Where a rule came from: "Source: outlet, date" rendered as a link. */
+export interface RuleSource {
+  outlet?: string;
+  date?: string;
+  url?: string;
+}
+
 export interface EzeroFir {
   state?: string;
   thresholdInr?: number | null;
   note?: string;
   sourceUrl?: string;
+  source?: RuleSource;
+  caveat?: string;
 }
 
 export interface MrmInfo {
@@ -256,6 +265,14 @@ export interface MrmInfo {
   firRequired?: boolean;
   checklist?: string[];
   portal?: string;
+  source?: RuleSource;
+  caveat?: string;
+}
+
+export interface NcrpInfo {
+  portal?: string;
+  source?: RuleSource;
+  caveat?: string;
 }
 
 export interface CaseArtifacts {
@@ -265,6 +282,7 @@ export interface CaseArtifacts {
   freezeLetter?: string;
   ezeroFir?: EzeroFir;
   mrm?: MrmInfo;
+  ncrp?: NcrpInfo;
 }
 
 export interface Case {
