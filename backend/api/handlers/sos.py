@@ -1,4 +1,9 @@
-"""POST /sos (covert SOS)."""
+"""POST /sos (covert SOS).
+
+Order matters: SOS item -> guardian tasks -> stop any running Ladder -> start the new Ladder ->
+record ``activeLadderArn`` on the parent's MEMBER item -> only then Web Push (best effort; a push
+failure can never delay or fail the handler).
+"""
 from __future__ import annotations
 
 import json
@@ -7,6 +12,7 @@ from typing import Any, Dict, List
 
 from common import auth, aws, config, db, push, tasks, texts, timeouts
 from common.http import ApiError, ok
+from api.handlers.checkin import stop_active_ladder
 
 log = logging.getLogger(__name__)
 
@@ -60,18 +66,30 @@ def post_sos(req: Any) -> Dict[str, Any]:
     text_en, text_hi = texts.task_text("sos" if maps_url else "sos_nolocation", ctx)
     context = {"reason": "sos", "lat": lat, "lon": lon, "accuracy": accuracy, "mapsUrl": maps_url,
                "since": ts, "parentSub": req.sub}
-    task_ids = []
+
+    # one active Ladder per parent: stop the previous one (and close its tasks) before starting again
+    stop_active_ladder(circle_id, req.sub, cause="new SOS restarted the ladder")
+
+    created: List[Dict[str, Any]] = []
     for guardian in _guardians(members):
         task = tasks.create_task(
             circle_id, "sos", guardian["sub"], text_en, text_hi,
             context=context, expires_in=3600, assignee_name=guardian.get("name"),
         )
-        task_ids.append(task["taskId"])
-        push.send_push(auth.load_profile(guardian["sub"]), push.build_payload(task))
+        created.append(task)
 
     arn = _start_ladder(circle_id, req.sub)
     db.set_attributes(sos_item["PK"], sos_item["SK"], {"ladderExecutionArn": arn})
-    return ok({"ladderExecutionArn": arn, "taskIds": task_ids}, status=202)
+    db.set_attributes(db.circle_pk(circle_id), db.member_sk(req.sub),
+                      {"activeLadderArn": arn or None, "lastSosAt": ts})
+
+    # pushes last: every DynamoDB write and Step Functions call above is already durable
+    for task in created:
+        try:
+            push.send_push(auth.load_profile(task["assigneeSub"]), push.build_payload(task))
+        except Exception as exc:  # noqa: BLE001 - never fail the SOS because of a push
+            log.warning("sos push skipped for %s: %s", task.get("assigneeSub"), exc)
+    return ok({"ladderExecutionArn": arn, "taskIds": [t["taskId"] for t in created]}, status=202)
 
 
 def _start_ladder(circle_id: str, parent_sub: str) -> str:

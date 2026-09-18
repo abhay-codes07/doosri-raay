@@ -73,3 +73,62 @@ def test_checkin_in_prod_mode_moves_deadline_to_tomorrow(api, family, monkeypatc
     # even though 23:00 IST may still be ahead today, today's check-in is done: tomorrow 23:00 IST
     assert deadline.hour == 23 and deadline.minute == 0
     assert deadline.date() == today + dt.timedelta(days=1)
+
+
+def test_checkin_stops_the_running_ladder(api, family):
+    """Fix: a check-in must end an escalation that is under way (Watch-started Ladder)."""
+    from ladder import task as ladder_task
+
+    sfn = family["sfn"]
+    circle = family["circleId"]
+    ladder_arn = "arn:aws:states:ap-south-1:123456789012:execution:Ladder:watch-started"
+    sfn.running.add(ladder_arn)
+    out = ladder_task.handler({"kind": "guardian_call", "rung": 1, "assigneeRole": "guardian1", "circleId": circle,
+                               "parentSub": "p1", "reason": "missed_checkin", "wait": True, "taskToken": "tok",
+                               "executionArn": ladder_arn}, None)
+    db.set_attributes("CIRCLE#%s" % circle, "MEMBER#p1", {"ladderState": "watching"})
+    member = db.get_item("CIRCLE#%s" % circle, "MEMBER#p1")
+    assert member["activeLadderArn"] == ladder_arn
+    status, body = api("POST", "/checkin", "p1", {})
+    assert status == 200 and body["ladderStopped"] is True
+    assert ladder_arn in sfn.stopped
+    member = db.get_item("CIRCLE#%s" % circle, "MEMBER#p1")
+    assert member["activeLadderArn"] is None and member["ladderState"] == "ok"
+    from common import tasks as tasks_mod
+
+    assert tasks_mod.get_task_by_id(out["taskId"])["status"] == "expired"
+    # a second check-in with nothing running is a no-op for the ladder
+    status, body = api("POST", "/checkin", "p1", {})
+    assert body["ladderStopped"] is False and sfn.stopped.count(ladder_arn) == 1
+
+
+def test_sos_replaces_running_ladder_and_pushes_last(api, family, monkeypatch):
+    from common import push, tasks as tasks_mod
+
+    sfn = family["sfn"]
+    circle = family["circleId"]
+    status, first = api("POST", "/sos", family["parent"], {"lat": 1, "lon": 2, "accuracy": 3})
+    assert status == 202
+    member = db.get_item("CIRCLE#%s" % circle, "MEMBER#p1")
+    assert member["activeLadderArn"] == first["ladderExecutionArn"]
+
+    # pushes are best effort and happen after the Ladder was started
+    order = []
+    monkeypatch.setattr(sfn, "start_execution", (lambda orig: (lambda **kw: (order.append("sfn"), orig(**kw))[1]))(sfn.start_execution))
+
+    def boom(profile, payload):
+        order.append("push")
+        raise RuntimeError("push service down")
+
+    monkeypatch.setattr(push, "send_push", boom)
+    status, second = api("POST", "/sos", family["parent"], {"lat": 1, "lon": 2, "accuracy": 3})
+    assert status == 202, second
+    assert order[0] == "sfn" and order.count("push") == 2
+    assert first["ladderExecutionArn"] in sfn.stopped
+    assert second["ladderExecutionArn"] != first["ladderExecutionArn"]
+    assert db.get_item("CIRCLE#%s" % circle, "MEMBER#p1")["activeLadderArn"] == second["ladderExecutionArn"]
+    # the first SOS's tasks were closed; the new ones are open
+    for tid in first["taskIds"]:
+        assert tasks_mod.get_task_by_id(tid)["status"] == "expired"
+    for tid in second["taskIds"]:
+        assert tasks_mod.get_task_by_id(tid)["status"] == "open"

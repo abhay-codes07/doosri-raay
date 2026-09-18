@@ -1,7 +1,8 @@
 """ladder-task Lambda (STATE_MACHINES.md "ladder-task").
 
 Payload: ``{kind, rung?, assigneeRole, circleId, parentSub?, caseId?, reason?, wait,
-taskToken?, attempt?, reminder?, escalation?}`` (infra/README.md).
+taskToken?, attempt?, reminder?, escalation?, executionArn?}`` (infra/README.md). ``executionArn``
+(``$$.Execution.Id``) on a ladder rung is stored as ``activeLadderArn`` on the parent's MEMBER item.
 
 Creates a TASK from kind + circle data, stores the Step Functions task token
 when ``wait`` is true, pushes to the assignee (all guardians for emergency/sos).
@@ -179,13 +180,27 @@ def create_ladder_task(event: Dict[str, Any]) -> Dict[str, Any]:
     )
     if not informational:
         _after_create(event, circle_id, kind, task, ctx)
+    # pushes last: every DynamoDB write above is durable before any network call to a push service
     payload = push.build_payload(task)
     for sub in _push_targets(kind, assignee, members):
-        push.send_push(auth.load_profile(sub), payload)
+        try:
+            push.send_push(auth.load_profile(sub), payload)
+        except Exception as exc:  # noqa: BLE001 - never fail the rung because of a push
+            log.warning("push skipped for %s: %s", sub, exc)
     return task
 
 
+def _record_ladder_execution(event: Dict[str, Any], circle_id: str, parent_sub: Optional[str]) -> None:
+    """Rung 1 (or any ladder rung) tells us the Ladder execution ARN via ``executionArn``
+    (``$$.Execution.Id`` in the ASL); store it so POST /checkin and /demo/reset can stop it."""
+    arn = event.get("executionArn")
+    if not arn or not parent_sub or event.get("kind") not in tasks.LADDER_KINDS:
+        return
+    db.set_attributes(db.circle_pk(circle_id), db.member_sk(parent_sub), {"activeLadderArn": arn})
+
+
 def _after_create(event: Dict[str, Any], circle_id: str, kind: str, task: Dict[str, Any], ctx: Dict[str, Any]) -> None:
+    _record_ladder_execution(event, circle_id, ctx.get("parentSub"))
     if kind == "emergency" and ctx.get("parentSub"):
         db.set_attributes(db.circle_pk(circle_id), db.member_sk(ctx["parentSub"]), {"ladderState": "escalated"})
     case_status = CASE_STATUS_FOR_KIND.get(kind)

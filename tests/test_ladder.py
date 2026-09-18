@@ -73,14 +73,17 @@ def test_ladder_status_closes_tasks(api, family):
     circle = family["circleId"]
     t = tasks.create_task(circle, "guardian_call", "g1", "x", "x", task_token="t")
     other = tasks.create_task(circle, "confirm_fields", "g1", "x", "x", task_token="t2")
+    db.set_attributes("CIRCLE#%s" % circle, "MEMBER#p1", {"activeLadderArn": "arn:ladder"})
     ladder_status.handler({"circleId": circle, "parentSub": "p1", "ladderState": "watching", "closeOpenTasks": False}, None)
+    assert db.get_item("CIRCLE#%s" % circle, "MEMBER#p1")["activeLadderArn"] == "arn:ladder"
     assert db.get_item("CIRCLE#%s" % circle, "MEMBER#p1")["ladderState"] == "watching"
     assert tasks.get_task_by_id(t["taskId"])["status"] == "open"
     res = ladder_status.handler({"circleId": circle, "parentSub": "p1", "ladderState": "ok", "closeOpenTasks": True}, None)
     assert res["closedTasks"] == 1
     assert tasks.get_task_by_id(t["taskId"])["status"] == "expired"
     assert tasks.get_task_by_id(other["taskId"])["status"] == "open"
-    assert db.get_item("CIRCLE#%s" % circle, "MEMBER#p1")["ladderState"] == "ok"
+    member = db.get_item("CIRCLE#%s" % circle, "MEMBER#p1")
+    assert member["ladderState"] == "ok" and member["activeLadderArn"] is None
 
 
 def test_watch_check(api, family):
