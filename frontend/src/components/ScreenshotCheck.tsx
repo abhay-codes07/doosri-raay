@@ -4,7 +4,7 @@ import { describeError, isAbort } from '../api/client';
 import type { Report } from '../api/types';
 import { Bi, useT } from '../i18n/LangContext';
 import { rememberReport, savePreview } from '../lib/storage';
-import { MAX_UPLOAD_BYTES, fileToPreview, isImageFile } from '../lib/validate';
+import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL, fileToPreview, formatBytes, isImageFile } from '../lib/validate';
 import { VerdictCard } from './VerdictCard';
 import { Spinner } from './ui';
 
@@ -59,7 +59,7 @@ export function ScreenshotCheck({
       return;
     }
     if (f.size > MAX_UPLOAD_BYTES) {
-      setError(t('tooLarge'));
+      setError(`${f.name} (${formatBytes(f.size)}): ${t('tooLarge', { max: MAX_UPLOAD_LABEL })}`);
       return;
     }
     setFile(f);

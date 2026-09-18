@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useId, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useApi } from '../api/context';
 import { describeError } from '../api/client';
@@ -9,7 +9,7 @@ import { usePoll, useProfile } from '../hooks/useProfile';
 import { useT } from '../i18n/LangContext';
 import type { StringKey } from '../i18n/strings';
 import { getPreview } from '../lib/storage';
-import { UTR_RE } from '../lib/validate';
+import { REF_MAX_LEN, classifyReference } from '../lib/validate';
 
 const STEPS: ReadonlyArray<{ id: string; key: StringKey }> = [
   { id: 'open', key: 'statusOpen' },
@@ -33,10 +33,24 @@ function toEditable(txns: Txn[]): EditableTxn[] {
     payee: typeof x.payee === 'string' ? x.payee : '',
     timestamp: typeof x.timestamp === 'string' ? x.timestamp : '',
     app: typeof x.app === 'string' ? x.app : '',
+    objectKey: typeof x.objectKey === 'string' ? x.objectKey : undefined,
+    rail: typeof x.rail === 'string' ? x.rail : undefined,
     valid: x.valid,
     issues: Array.isArray(x.issues) ? x.issues.filter((i): i is string => typeof i === 'string') : [],
+    manual: x.manual === true,
   }));
 }
+
+const blankTxn = (): EditableTxn => ({
+  utr: '',
+  amount: null,
+  amountText: '',
+  payee: '',
+  timestamp: '',
+  app: '',
+  issues: [],
+  manual: true,
+});
 
 export function CaseDetailPage() {
   const { id = '' } = useParams();
@@ -266,15 +280,19 @@ function ConfirmTxns({
   onConfirm: (txns: Txn[]) => Promise<void>;
 }) {
   const { t, lang } = useT();
+  const uid = useId();
   const [txns, setTxns] = useState<EditableTxn[]>(() => toEditable(kase.extracted?.txns ?? []));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const keys = kase.objectKeys ?? [];
+  const nothingExtracted = (kase.extracted?.txns ?? []).length === 0;
 
   const update = (i: number, patch: Partial<EditableTxn>) =>
     setTxns((cur) => cur.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  const addRow = () => setTxns((cur) => [...cur, blankTxn()]);
+  const removeRow = (i: number) => setTxns((cur) => cur.filter((_, j) => j !== i));
 
-  const allValid = txns.every((x) => UTR_RE.test(x.utr.trim()));
+  const allValid = txns.length > 0 && txns.every((x) => classifyReference(x.utr).valid);
 
   const submit = async () => {
     setBusy(true);
@@ -287,6 +305,9 @@ function ConfirmTxns({
           payee: x.payee.trim(),
           timestamp: x.timestamp.trim(),
           app: x.app.trim(),
+          objectKey: x.objectKey,
+          rail: classifyReference(x.utr).rail ?? undefined,
+          manual: x.manual ? true : undefined,
         })),
       );
     } catch (e) {
@@ -298,53 +319,75 @@ function ConfirmTxns({
 
   return (
     <Section title={t('extractedTitle')}>
-      {txns.length === 0 && <p className="muted">{t('empty')}</p>}
+      {nothingExtracted && (
+        <div className="alert" role="status">
+          <p style={{ margin: '0 0 4px', fontWeight: 600 }}>{t('noTxnsFound')}</p>
+          <p className="small" style={{ margin: 0 }}>
+            {t('noTxnsFoundSub')}
+          </p>
+        </div>
+      )}
       <div className="stack" style={{ gap: 18 }}>
         {txns.map((x, i) => {
-          const preview = getPreview(keys[i] ?? '') ?? (keys.length === 1 ? getPreview(keys[0]) : null);
-          const utrOk = UTR_RE.test(x.utr.trim());
+          // Pair each row with the screenshot it came from; a single-screenshot case has no ambiguity.
+          const preview = x.objectKey ? getPreview(x.objectKey) : keys.length === 1 && !x.manual ? getPreview(keys[0]) : null;
+          const ref = classifyReference(x.utr);
+          const id = (f: string) => `${uid}-${f}-${i}`;
           return (
             <div key={i} className="txn">
               <div>
                 {preview ? (
                   <img className="thumb" src={preview} alt={`${t('txn')} ${i + 1}`} />
                 ) : (
-                  <div className="placeholder">{t('noPreview')}</div>
+                  <div className="placeholder">{x.manual ? t('manualRow') : t('noPreview')}</div>
                 )}
               </div>
               <div>
-                <h3 style={{ margin: '0 0 8px', fontSize: '1em' }}>
-                  {t('txn')} {i + 1}
-                </h3>
+                <div className="row spread">
+                  <h3 style={{ margin: '0 0 8px', fontSize: '1em' }}>
+                    {t('txn')} {i + 1} {x.manual && <span className="badge">{t('manualRow')}</span>}
+                  </h3>
+                  <button type="button" className="btn btn-quiet small" disabled={busy} onClick={() => removeRow(i)} aria-label={`${t('removeTxn')} ${i + 1}`}>
+                    {t('remove')}
+                  </button>
+                </div>
                 <div className="field">
-                  <label htmlFor={`utr-${i}`}>{t('utr')}</label>
+                  <label htmlFor={id('utr')}>{t('utr')}</label>
                   <input
-                    id={`utr-${i}`}
+                    id={id('utr')}
                     value={x.utr}
-                    inputMode="numeric"
-                    aria-invalid={!utrOk}
-                    aria-describedby={`utr-err-${i}`}
-                    onChange={(e) => update(i, { utr: e.target.value.replace(/\D/g, '').slice(0, 12) })}
+                    autoComplete="off"
+                    autoCapitalize="characters"
+                    maxLength={REF_MAX_LEN}
+                    aria-invalid={!ref.valid}
+                    aria-describedby={id('utr-err')}
+                    onChange={(e) => update(i, { utr: e.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, REF_MAX_LEN) })}
                   />
-                  <span id={`utr-err-${i}`} className={utrOk ? 'help' : 'err'}>
-                    {utrOk ? `${x.utr.length}/12` : t('utrInvalid')}
+                  <span id={id('utr-err')} className={ref.valid ? 'help' : 'err'}>
+                    {ref.valid ? (
+                      <>
+                        <span className="badge badge-ok">{ref.rail}</span> {x.utr.length}
+                      </>
+                    ) : (
+                      t('utrInvalid')
+                    )}
                   </span>
                 </div>
                 <div className="field">
-                  <label htmlFor={`amt-${i}`}>{t('amount')}</label>
-                  <input id={`amt-${i}`} value={x.amountText} inputMode="decimal" onChange={(e) => update(i, { amountText: e.target.value })} />
+                  <label htmlFor={id('amt')}>{t('amount')}</label>
+                  <input id={id('amt')} value={x.amountText} inputMode="decimal" onChange={(e) => update(i, { amountText: e.target.value })} />
                 </div>
                 <div className="field">
-                  <label htmlFor={`payee-${i}`}>{t('payee')}</label>
-                  <input id={`payee-${i}`} value={x.payee} onChange={(e) => update(i, { payee: e.target.value })} />
+                  <label htmlFor={id('payee')}>{t('payee')}</label>
+                  <input id={id('payee')} value={x.payee} onChange={(e) => update(i, { payee: e.target.value })} />
                 </div>
                 <div className="field">
-                  <label htmlFor={`ts-${i}`}>{t('timestamp')}</label>
-                  <input id={`ts-${i}`} value={x.timestamp} onChange={(e) => update(i, { timestamp: e.target.value })} />
+                  <label htmlFor={id('ts')}>{t('timestamp')}</label>
+                  <input id={id('ts')} value={x.timestamp} placeholder="2026-09-17T10:30:00+05:30" onChange={(e) => update(i, { timestamp: e.target.value })} />
                 </div>
                 <div className="field">
-                  <label htmlFor={`app-${i}`}>{t('appLabel')}</label>
-                  <input id={`app-${i}`} value={x.app} onChange={(e) => update(i, { app: e.target.value })} />
+                  <label htmlFor={id('app')}>{t('appLabel')}</label>
+                  <input id={id('app')} value={x.app} placeholder="PhonePe / GPay / Paytm / bank" onChange={(e) => update(i, { app: e.target.value })} />
                 </div>
                 {x.issues && x.issues.length > 0 && (
                   <div className="alert">
@@ -361,16 +404,21 @@ function ConfirmTxns({
           );
         })}
       </div>
+      <p className="mt">
+        <button type="button" className="btn" disabled={busy || txns.length >= 20} onClick={addRow}>
+          + {t('addManually')}
+        </button>
+      </p>
       {error && (
         <p className="alert alert-error mt" role="alert">
           {error}
         </p>
       )}
       <div className="row mt">
-        <button type="button" className="btn btn-primary btn-big" disabled={busy || !allValid || !taskId || txns.length === 0} onClick={submit}>
+        <button type="button" className="btn btn-primary btn-big" disabled={busy || !allValid || !taskId} onClick={submit}>
           {busy ? <Spinner label={t('confirming')} /> : t('confirm')}
         </button>
-        {!allValid && <span className="muted small">{t('fixUtr')}</span>}
+        {txns.length > 0 && !allValid && <span className="muted small">{t('fixUtr')}</span>}
         {!taskId && <span className="muted small">{t('loading')}</span>}
       </div>
     </Section>

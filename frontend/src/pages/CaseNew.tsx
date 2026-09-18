@@ -7,7 +7,7 @@ import { INDIAN_STATES } from '../data/states';
 import { useT } from '../i18n/LangContext';
 import { istDateString } from '../lib/dates';
 import { savePreview } from '../lib/storage';
-import { MAX_UPLOAD_BYTES, fileToPreview, isImageFile } from '../lib/validate';
+import { MAX_CASE_SCREENSHOTS, MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL, fileToPreview, formatBytes, isImageFile } from '../lib/validate';
 import { useSession } from '../session';
 
 interface Picked {
@@ -29,19 +29,27 @@ export function CaseNewPage() {
   const [progress, setProgress] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  /** Size and type checks happen here, before any upload, and name the offending file. */
   const addFiles = async (files: FileList | null) => {
     if (!files) return;
     setError(null);
+    const problems: string[] = [];
     const next: Picked[] = [];
+    let room = MAX_CASE_SCREENSHOTS - picked.length;
     for (const f of Array.from(files)) {
       if (!isImageFile(f)) {
-        setError(t('notImage'));
+        problems.push(`${f.name}: ${t('notImage')}`);
         continue;
       }
       if (f.size > MAX_UPLOAD_BYTES) {
-        setError(t('tooLarge'));
+        problems.push(`${f.name} (${formatBytes(f.size)}): ${t('tooLarge', { max: MAX_UPLOAD_LABEL })}`);
         continue;
       }
+      if (room <= 0) {
+        problems.push(t('tooManyShots', { max: MAX_CASE_SCREENSHOTS }));
+        break;
+      }
+      room -= 1;
       let preview: string;
       try {
         preview = await fileToPreview(f);
@@ -50,7 +58,8 @@ export function CaseNewPage() {
       }
       next.push({ file: f, preview });
     }
-    setPicked((cur) => [...cur, ...next].slice(0, 8));
+    if (problems.length > 0) setError(problems.join(' · '));
+    setPicked((cur) => [...cur, ...next].slice(0, MAX_CASE_SCREENSHOTS));
   };
 
   const submit = async (e: FormEvent) => {
@@ -130,14 +139,27 @@ export function CaseNewPage() {
         </div>
         <div className="field">
           <label htmlFor="shots">{t('screenshots')}</label>
-          <input id="shots" type="file" accept="image/*" multiple disabled={busy} onChange={(e) => void addFiles(e.target.files)} />
-          <span className="help">{t('addImages')} · ≤ 5 MB</span>
+          <input
+            id="shots"
+            type="file"
+            accept="image/*"
+            multiple
+            disabled={busy || picked.length >= MAX_CASE_SCREENSHOTS}
+            onChange={(e) => {
+              void addFiles(e.target.files);
+              e.target.value = '';
+            }}
+          />
+          <span className="help">
+            {t('addImages')} · {t('shotLimits', { max: MAX_CASE_SCREENSHOTS, size: MAX_UPLOAD_LABEL })} · {picked.length}/{MAX_CASE_SCREENSHOTS}
+          </span>
         </div>
         {picked.length > 0 && (
           <div className="thumb-grid" style={{ marginBottom: 14 }}>
             {picked.map((p, i) => (
               <figure key={`${p.file.name}-${i}`}>
                 {p.preview ? <img src={p.preview} alt={p.file.name} /> : <div className="placeholder">{p.file.name}</div>}
+                <figcaption className="small muted">{formatBytes(p.file.size)}</figcaption>
                 <button
                   type="button"
                   className="btn btn-quiet small"

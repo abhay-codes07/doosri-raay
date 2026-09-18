@@ -162,8 +162,14 @@ export interface Txn {
   payee: string;
   timestamp: string;
   app: string;
+  /** Screenshot this transaction was read from (pairs the row with its preview). */
+  objectKey?: string;
+  /** 'UPI/IMPS' (12 digits) or 'NEFT/RTGS' (16-22 alphanumerics), set by the backend validator. */
+  rail?: string;
   valid?: boolean;
   issues?: string[];
+  /** True for rows the guardian typed in by hand. */
+  manual?: boolean;
 }
 
 export interface CompleteTaskBody {
