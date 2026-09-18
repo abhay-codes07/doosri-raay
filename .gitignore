@@ -1,0 +1,20 @@
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.aws-sam/
+# node
+node_modules/
+frontend/dist/
+frontend/.env*
+!frontend/.env.example
+# sam / secrets
+samconfig.toml
+infra/.env
+*.pem
+vapid*.json
+# misc
+.DS_Store
+*.log
+eval/results_raw.jsonl
