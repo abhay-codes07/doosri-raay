@@ -410,7 +410,8 @@ export const S = {
   demoResetDone: { hi: 'Demo reset हो गया', en: 'Demo reset done' },
   demoResetting: { hi: 'Reset हो रहा है…', en: 'Resetting…' },
   demoResetServerFailed: { hi: 'Server reset नहीं हुआ; सिर्फ़ local state साफ़', en: 'Server reset failed; only local state cleared' },
-  demoTokenNote: { hi: 'Token सिर्फ़ memory में रहता है; पेज reload पर फिर साइन इन करें।', en: 'Token lives in memory only; sign in again after a reload.' },
+  demoTokenNote: { hi: 'Token सिर्फ़ memory में रहता है (हर घंटे अपने-आप renew); पेज reload पर फिर साइन इन करें।', en: 'Tokens live in memory only (renewed before they expire); sign in again after a reload.' },
+  demoSessionExpired: { hi: 'Parent का सत्र समाप्त हो गया — फिर से साइन इन करें।', en: 'The parent session expired; sign in again.' },
   demoNeedParent: { hi: 'बाईं ओर parent के रूप में साइन इन करें।', en: 'Sign in as the parent on the left.' },
 } as const satisfies Record<string, BiString>;
 

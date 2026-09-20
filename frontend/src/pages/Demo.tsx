@@ -1,23 +1,34 @@
-import { useEffect, useId, useState, type FormEvent } from 'react';
-import { ApiTokenProvider, useApi } from '../api/context';
+import { useCallback, useEffect, useId, useState, type FormEvent, type ReactNode } from 'react';
+import { ApiTokenProvider, jwtSub, useApi, useApiIdentity } from '../api/context';
 import { describeError } from '../api/client';
 import type { DemoConfig } from '../api/types';
 import { Spinner } from '../components/ui';
 import { useT } from '../i18n/LangContext';
-import { cognitoPasswordAuth } from '../lib/cognitoPasswordAuth';
+import { cognitoPasswordAuth, cognitoRefreshAuth, refreshDelayMs, type PasswordAuthResult } from '../lib/cognitoPasswordAuth';
 import { KEYS, removePrefix } from '../lib/storage';
 import { GuardianScreen } from './Guardian';
 import { ParentScreen } from './Parent';
 
+export interface DemoPageProps {
+  /** Judge path: the parent pane signs in by itself on mount and again after a 401. */
+  autoParent?: () => Promise<PasswordAuthResult>;
+  /** Rendered between the header and the two phones (the judge FAQ). */
+  faq?: ReactNode;
+  /** Extra header controls (e.g. a "watch expires in" hint). */
+  headerExtra?: ReactNode;
+}
+
 /**
  * One-browser split view for judges. Left: Papa's phone (second identity via direct Cognito
- * USER_PASSWORD_AUTH, token in memory only). Right: Priya's phone (the normal Amplify session).
+ * USER_PASSWORD_AUTH, tokens in memory only, refreshed 5 minutes before expiry). Right: Priya's
+ * phone (the normal Amplify session).
  */
-export function DemoPage() {
+export function DemoPage({ autoParent, faq, headerExtra }: DemoPageProps = {}) {
   const api = useApi();
+  const guardianIdentity = useApiIdentity();
   const { t } = useT();
   const uid = useId();
-  const [parentToken, setParentToken] = useState<string | null>(null);
+  const [parentAuth, setParentAuth] = useState<PasswordAuthResult | null>(null);
   const [parentEmail, setParentEmail] = useState(import.meta.env.VITE_DEMO_PARENT_EMAIL ?? '');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -44,7 +55,7 @@ export function DemoPage() {
     setError(null);
     try {
       const r = await cognitoPasswordAuth(parentEmail, password);
-      setParentToken(r.idToken);
+      setParentAuth(r);
       setPassword('');
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -53,7 +64,52 @@ export function DemoPage() {
     }
   };
 
-  /** POST /demo/reset as the guardian (the Amplify session), then clear this browser's state. */
+  // Judge path: sign the parent in without a form (and again whenever the pane is signed out).
+  const [autoTries, setAutoTries] = useState(0);
+  useEffect(() => {
+    if (!autoParent || parentAuth || autoTries > 3) return undefined;
+    let alive = true;
+    setBusy(true);
+    setError(null);
+    autoParent()
+      .then((r) => {
+        if (alive) setParentAuth(r);
+      })
+      .catch((err: unknown) => {
+        if (!alive) return;
+        setError(err instanceof Error ? err.message : String(err));
+        setAutoTries((n) => n + 1);
+      })
+      .finally(() => alive && setBusy(false));
+    return () => {
+      alive = false;
+    };
+    // `epoch` re-runs the auto sign-in after a reset or a 401.
+  }, [autoParent, parentAuth, autoTries, epoch]);
+
+  // Refresh the parent's ID token 5 minutes before it expires; on failure fall back to the form.
+  useEffect(() => {
+    if (!parentAuth?.refreshToken) return undefined;
+    const refreshToken = parentAuth.refreshToken;
+    const id = window.setTimeout(() => {
+      cognitoRefreshAuth(refreshToken)
+        .then((r) => setParentAuth({ ...r, refreshToken: r.refreshToken ?? refreshToken }))
+        .catch(() => {
+          setParentAuth(null);
+          setError(t('demoSessionExpired'));
+        });
+    }, refreshDelayMs(parentAuth));
+    return () => window.clearTimeout(id);
+  }, [parentAuth, t]);
+
+  /** A 401 on the parent client: show the sign-in form again (never touches the guardian session). */
+  const onParentUnauthorized = useCallback(() => {
+    setParentAuth(null);
+    setError(t('demoSessionExpired'));
+    setAutoTries(0);
+  }, [t]);
+
+  /** POST /demo/reset as the guardian (the Amplify session), then clear this browser's state for both identities. */
   const resetDemo = async () => {
     setResetting(true);
     setResetMsg(null);
@@ -63,7 +119,9 @@ export function DemoPage() {
     } catch (e) {
       msg = `${t('demoResetServerFailed')} (${describeError(e)})`;
     } finally {
-      removePrefix(KEYS.prefix);
+      // Scoped to the two identities on screen: language, geocode and weather caches survive.
+      removePrefix(KEYS.identityPrefix(guardianIdentity));
+      if (parentAuth) removePrefix(KEYS.identityPrefix(jwtSub(parentAuth.idToken)));
       setEpoch((n) => n + 1);
       setResetting(false);
       setResetMsg(msg);
@@ -84,7 +142,7 @@ export function DemoPage() {
               {config.demoTimeouts && ` · watch ${config.watchDeadlineSeconds ?? 45} s · rung ${config.rungTimeoutSeconds ?? 45} s`}
             </span>
           )}
-          <span className="small muted">{t('demoTimings')}</span>
+          {headerExtra}
           <button type="button" className="btn" disabled={resetting} onClick={() => void resetDemo()}>
             {resetting ? <Spinner label={t('demoResetting')} /> : t('demoReset')}
           </button>
@@ -96,42 +154,65 @@ export function DemoPage() {
         </div>
       </div>
 
+      {faq}
+
       <div className="demo-split">
         <section className="phone" aria-label={t('demoLeft')}>
           <div className="phone-head">
             <span>📱 {t('demoLeft')}</span>
-            {parentToken && (
-              <button type="button" className="btn btn-quiet small" onClick={() => setParentToken(null)}>
+            {parentAuth && !autoParent && (
+              <button type="button" className="btn btn-quiet small" onClick={() => setParentAuth(null)}>
                 {t('demoSignOutParent')}
               </button>
             )}
           </div>
           <div className="phone-body">
-            {!parentToken ? (
-              <form className="card" onSubmit={signInParent}>
-                <div className="field">
-                  <label htmlFor={`${uid}-email`}>{t('demoParentEmail')}</label>
-                  <input id={`${uid}-email`} type="email" value={parentEmail} autoComplete="username" onChange={(e) => setParentEmail(e.target.value)} required />
+            {!parentAuth ? (
+              autoParent ? (
+                <div className="card">
+                  {busy ? (
+                    <Spinner label={t('demoSigningIn')} />
+                  ) : (
+                    <>
+                      {error && (
+                        <p className="alert alert-error" role="alert">
+                          {error}
+                        </p>
+                      )}
+                      <button type="button" className="btn btn-primary btn-big btn-block" onClick={() => setAutoTries(0)}>
+                        {t('retry')}
+                      </button>
+                    </>
+                  )}
                 </div>
-                <div className="field">
-                  <label htmlFor={`${uid}-pw`}>{t('demoParentPassword')}</label>
-                  <input id={`${uid}-pw`} type="password" value={password} autoComplete="current-password" onChange={(e) => setPassword(e.target.value)} required />
-                </div>
-                {error && (
-                  <p className="alert alert-error" role="alert">
-                    {error}
+              ) : (
+                <form className="card" onSubmit={signInParent}>
+                  <div className="field">
+                    <label htmlFor={`${uid}-email`}>{t('demoParentEmail')}</label>
+                    <input id={`${uid}-email`} type="email" value={parentEmail} autoComplete="username" onChange={(e) => setParentEmail(e.target.value)} required />
+                  </div>
+                  <div className="field">
+                    <label htmlFor={`${uid}-pw`}>{t('demoParentPassword')}</label>
+                    <input id={`${uid}-pw`} type="password" value={password} autoComplete="current-password" onChange={(e) => setPassword(e.target.value)} required />
+                  </div>
+                  {error && (
+                    <p className="alert alert-error" role="alert">
+                      {error}
+                    </p>
+                  )}
+                  <button type="submit" className="btn btn-primary btn-big btn-block" disabled={busy}>
+                    {busy ? <Spinner label={t('demoSigningIn')} /> : t('demoSignIn')}
+                  </button>
+                  <p className="small muted">{t('demoTokenNote')}</p>
+                </form>
+              )
+            ) : (
+              <ApiTokenProvider token={parentAuth.idToken} onUnauthorized={onParentUnauthorized}>
+                {!autoParent && (
+                  <p className="small muted" style={{ margin: '0 0 8px' }}>
+                    {t('demoSignedIn', { email: parentEmail })}
                   </p>
                 )}
-                <button type="submit" className="btn btn-primary btn-big btn-block" disabled={busy}>
-                  {busy ? <Spinner label={t('demoSigningIn')} /> : t('demoSignIn')}
-                </button>
-                <p className="small muted">{t('demoTokenNote')}</p>
-              </form>
-            ) : (
-              <ApiTokenProvider token={parentToken}>
-                <p className="small muted" style={{ margin: '0 0 8px' }}>
-                  {t('demoSignedIn', { email: parentEmail })}
-                </p>
                 <ParentScreen key={`p-${epoch}`} embedded />
               </ApiTokenProvider>
             )}

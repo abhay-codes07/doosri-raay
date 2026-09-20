@@ -58,6 +58,8 @@ export function removePrefix(prefix: string): void {
 
 export const KEYS = {
   prefix: 'dr:',
+  /** Every per-identity key lives under this prefix (reset clears only these). */
+  identityPrefix: (id: string) => `dr:${id}:`,
   pact: (id: string) => `dr:${id}:pact`,
   checkinDay: (id: string) => `dr:${id}:checkin`,
   meds: (id: string, day: string) => `dr:${id}:meds:${day}`,
