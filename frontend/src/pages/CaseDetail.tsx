@@ -8,8 +8,9 @@ import { CopyButton, ErrorBox, Section, Spinner } from '../components/ui';
 import { usePoll, useProfile } from '../hooks/useProfile';
 import { useT } from '../i18n/LangContext';
 import type { StringKey } from '../i18n/strings';
+import { datetimeLocalFromIso, isoFromDatetimeLocal } from '../lib/dates';
 import { getPreview } from '../lib/storage';
-import { REF_MAX_LEN, classifyReference } from '../lib/validate';
+import { REF_MAX_LEN, classifyReference, parseAmount, txnIssues, type TxnIssue } from '../lib/validate';
 
 const STEPS: ReadonlyArray<{ id: string; key: StringKey }> = [
   { id: 'open', key: 'statusOpen' },
@@ -23,7 +24,19 @@ const STEPS: ReadonlyArray<{ id: string; key: StringKey }> = [
 
 interface EditableTxn extends Txn {
   amountText: string;
+  /** "YYYY-MM-DDTHH:mm" in IST for the datetime-local input; converted to ISO (+05:30) on submit. */
+  timestampLocal: string;
 }
+
+const ISSUE_KEY: Record<TxnIssue, StringKey> = {
+  utr_invalid: 'utrInvalid',
+  amount_invalid: 'amountInvalid',
+  payee_missing: 'payeeMissing',
+  timestamp_missing: 'timestampMissing',
+};
+
+const rowIssues = (x: EditableTxn): TxnIssue[] =>
+  txnIssues({ utr: x.utr, amountText: x.amountText, payee: x.payee, timestampIso: isoFromDatetimeLocal(x.timestampLocal) });
 
 function toEditable(txns: Txn[]): EditableTxn[] {
   return txns.map((x) => ({
@@ -32,6 +45,7 @@ function toEditable(txns: Txn[]): EditableTxn[] {
     amountText: typeof x.amount === 'number' ? String(x.amount) : '',
     payee: typeof x.payee === 'string' ? x.payee : '',
     timestamp: typeof x.timestamp === 'string' ? x.timestamp : '',
+    timestampLocal: datetimeLocalFromIso(typeof x.timestamp === 'string' ? x.timestamp : ''),
     app: typeof x.app === 'string' ? x.app : '',
     objectKey: typeof x.objectKey === 'string' ? x.objectKey : undefined,
     rail: typeof x.rail === 'string' ? x.rail : undefined,
@@ -47,6 +61,7 @@ const blankTxn = (): EditableTxn => ({
   amountText: '',
   payee: '',
   timestamp: '',
+  timestampLocal: '',
   app: '',
   issues: [],
   manual: true,
@@ -288,7 +303,8 @@ function ConfirmTxns({
   const addRow = () => setTxns((cur) => [...cur, blankTxn()]);
   const removeRow = (i: number) => setTxns((cur) => cur.filter((_, j) => j !== i));
 
-  const allValid = txns.length > 0 && txns.every((x) => classifyReference(x.utr).valid);
+  // Mirror the server's rules so a confirm never bounces with 400 invalid_txns.
+  const allValid = txns.length > 0 && txns.every((x) => rowIssues(x).length === 0);
 
   const submit = async () => {
     setBusy(true);
@@ -297,9 +313,9 @@ function ConfirmTxns({
       await onConfirm(
         txns.map((x) => ({
           utr: x.utr.trim(),
-          amount: x.amountText.trim() ? Number(x.amountText.replace(/[^\d.]/g, '')) : null,
+          amount: parseAmount(x.amountText),
           payee: x.payee.trim(),
-          timestamp: x.timestamp.trim(),
+          timestamp: isoFromDatetimeLocal(x.timestampLocal),
           app: x.app.trim(),
           objectKey: x.objectKey,
           rail: classifyReference(x.utr).rail ?? undefined,
@@ -328,6 +344,8 @@ function ConfirmTxns({
           // Pair each row with the screenshot it came from; a single-screenshot case has no ambiguity.
           const preview = x.objectKey ? getPreview(x.objectKey) : keys.length === 1 && !x.manual ? getPreview(keys[0]) : null;
           const ref = classifyReference(x.utr);
+          const issues = rowIssues(x);
+          const has = (k: TxnIssue) => issues.includes(k);
           const id = (f: string) => `${uid}-${f}-${i}`;
           return (
             <div key={i} className="txn">
@@ -371,26 +389,59 @@ function ConfirmTxns({
                 </div>
                 <div className="field">
                   <label htmlFor={id('amt')}>{t('amount')}</label>
-                  <input id={id('amt')} value={x.amountText} inputMode="decimal" onChange={(e) => update(i, { amountText: e.target.value })} />
+                  <input
+                    id={id('amt')}
+                    value={x.amountText}
+                    inputMode="decimal"
+                    aria-invalid={has('amount_invalid')}
+                    aria-describedby={id('amt-err')}
+                    onChange={(e) => update(i, { amountText: e.target.value })}
+                  />
+                  {has('amount_invalid') && (
+                    <span id={id('amt-err')} className="err">
+                      {t('amountInvalid')}
+                    </span>
+                  )}
                 </div>
                 <div className="field">
                   <label htmlFor={id('payee')}>{t('payee')}</label>
-                  <input id={id('payee')} value={x.payee} onChange={(e) => update(i, { payee: e.target.value })} />
+                  <input
+                    id={id('payee')}
+                    value={x.payee}
+                    aria-invalid={has('payee_missing')}
+                    aria-describedby={id('payee-err')}
+                    onChange={(e) => update(i, { payee: e.target.value })}
+                  />
+                  {has('payee_missing') && (
+                    <span id={id('payee-err')} className="err">
+                      {t('payeeMissing')}
+                    </span>
+                  )}
                 </div>
                 <div className="field">
                   <label htmlFor={id('ts')}>{t('timestamp')}</label>
-                  <input id={id('ts')} value={x.timestamp} placeholder="2026-09-17T10:30:00+05:30" onChange={(e) => update(i, { timestamp: e.target.value })} />
+                  <input
+                    id={id('ts')}
+                    type="datetime-local"
+                    value={x.timestampLocal}
+                    aria-invalid={has('timestamp_missing')}
+                    aria-describedby={id('ts-err')}
+                    onChange={(e) => update(i, { timestampLocal: e.target.value })}
+                  />
+                  <span id={id('ts-err')} className={has('timestamp_missing') ? 'err' : 'help'}>
+                    {has('timestamp_missing') ? t('timestampMissing') : t('timestampHelp')}
+                  </span>
                 </div>
                 <div className="field">
                   <label htmlFor={id('app')}>{t('appLabel')}</label>
                   <input id={id('app')} value={x.app} placeholder="PhonePe / GPay / Paytm / bank" onChange={(e) => update(i, { app: e.target.value })} />
                 </div>
-                {x.issues && x.issues.length > 0 && (
+                {x.issues && x.issues.length > 0 && issues.length > 0 && (
                   <div className="alert">
                     <strong>{t('issues')}:</strong>
                     <ul className="list-plain">
-                      {x.issues.map((iss, j) => (
-                        <li key={`${j}-${iss}`}>{iss}</li>
+                      {issues.map((iss) => (
+                        <li key={iss}>{t(ISSUE_KEY[iss])}</li>
                       ))}
                     </ul>
                   </div>

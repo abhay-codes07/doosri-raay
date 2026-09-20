@@ -270,6 +270,10 @@ export function describeError(e: unknown, lang: 'hi' | 'en' = 'hi'): string {
         return lang === 'hi' ? 'यह नहीं मिला।' : 'Not found.';
       case 'role_taken':
         return lang === 'hi' ? 'इस परिवार में पहले से एक parent है।' : 'This circle already has a parent.';
+      case 'invalid_txns':
+        return lang === 'hi'
+          ? 'कुछ लेन-देन की जानकारी सर्वर ने नहीं मानी — UTR, रकम, किसे भेजा और समय जाँचकर फिर पक्का करें।'
+          : `The server rejected some rows; check UTR, amount, payee and time, then confirm again. (${e.message})`;
       default:
         return e.message || e.code;
     }

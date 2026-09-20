@@ -16,6 +16,34 @@ export const REF_MAX_LEN = 22;
 
 export type Rail = 'UPI/IMPS' | 'NEFT/RTGS';
 
+/** Server rule (rules.py): amount 1..1e8. */
+export const AMOUNT_MIN = 1;
+export const AMOUNT_MAX = 100_000_000;
+
+export type TxnIssue = 'utr_invalid' | 'amount_invalid' | 'payee_missing' | 'timestamp_missing';
+
+/** Parse a typed amount ("₹ 50,000.00" → 50000); null when not numeric. */
+export function parseAmount(text: string): number | null {
+  const cleaned = text.replace(/[^\d.]/g, '');
+  if (!cleaned) return null;
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Mirror of the server's validate_txn: reference on a known rail, numeric amount within range,
+ * non-empty payee, parseable timestamp (here: an ISO string produced from the datetime input).
+ */
+export function txnIssues(row: { utr: string; amountText: string; payee: string; timestampIso: string }): TxnIssue[] {
+  const issues: TxnIssue[] = [];
+  if (!classifyReference(row.utr).valid) issues.push('utr_invalid');
+  const amount = parseAmount(row.amountText);
+  if (amount === null || amount < AMOUNT_MIN || amount > AMOUNT_MAX) issues.push('amount_invalid');
+  if (!row.payee.trim()) issues.push('payee_missing');
+  if (!row.timestampIso || Number.isNaN(new Date(row.timestampIso).getTime())) issues.push('timestamp_missing');
+  return issues;
+}
+
 /** Classify a transaction reference: 12 digits → UPI/IMPS, 16-22 alphanumerics → NEFT/RTGS. */
 export function classifyReference(raw: string): { valid: boolean; rail: Rail | null } {
   const ref = raw.trim();

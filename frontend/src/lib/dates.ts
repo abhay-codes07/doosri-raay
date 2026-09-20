@@ -82,3 +82,23 @@ export function dayOfYearIST(now: Date = new Date()): number {
   const start = Date.UTC(ist.getUTCFullYear(), 0, 1);
   return Math.floor((ist.getTime() - start) / 86400000);
 }
+
+/** ISO timestamp → "YYYY-MM-DDTHH:mm" in IST for a datetime-local input ('' when unparseable). */
+export function datetimeLocalFromIso(iso: string | undefined | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const ist = new Date(d.getTime() + IST_OFFSET_MS);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${ist.getUTCFullYear()}-${p(ist.getUTCMonth() + 1)}-${p(ist.getUTCDate())}T${p(ist.getUTCHours())}:${p(ist.getUTCMinutes())}`;
+}
+
+/** "YYYY-MM-DDTHH:mm[:ss]" from a datetime-local input, read as IST → ISO with +05:30 ('' when invalid). */
+export function isoFromDatetimeLocal(local: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(local.trim());
+  if (!m) return '';
+  const [, y, mo, d, h, mi, sec = '00'] = m;
+  const probe = Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(sec));
+  if (Number.isNaN(probe)) return '';
+  return `${y}-${mo}-${d}T${h}:${mi}:${sec}+05:30`;
+}
