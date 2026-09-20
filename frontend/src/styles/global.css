@@ -625,6 +625,8 @@ input[type='file'] {
   user-select: none;
   -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
+  /* iOS double-tap zoom would swallow the second and third taps of the covert SOS */
+  touch-action: manipulation;
   cursor: default;
   transition: opacity 0.2s ease;
 }
