@@ -37,8 +37,8 @@ function Bi2({ k, as: Tag = 'span' }: { k: StringKey; as?: 'span' | 'h1' | 'h2' 
 function errorKey(e: unknown): StringKey {
   const name = e instanceof Error ? e.name : '';
   switch (name) {
+    // The pool hides user existence (PreventUserExistenceErrors), so both read the same.
     case 'UserNotFoundException':
-      return 'authErrNoUser';
     case 'NotAuthorizedException':
       return 'authErrWrong';
     case 'UsernameExistsException':
