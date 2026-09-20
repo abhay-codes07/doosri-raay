@@ -54,6 +54,15 @@ function asString(v: unknown): string | undefined {
   return typeof v === 'string' && v.trim() ? v : undefined;
 }
 
+/**
+ * Hindi mode shows the Hindi script (server `scriptHi`, else the Hindi template); English mode the
+ * server `script` else the English template. Never an English script on a Hindi screen.
+ */
+function pickScript(lang: 'hi' | 'en', ctx: { script?: unknown; scriptHi?: unknown }, fallback: string): string {
+  if (lang === 'hi') return asString(ctx.scriptHi) ?? fallback;
+  return asString(ctx.script) ?? fallback;
+}
+
 function asStringList(v: unknown): string[] {
   return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
 }
@@ -129,14 +138,15 @@ export function TaskCard({ task, parentName, parentPhone, onComplete, inlineCase
       body = (
         <>
           <p className="pre">
-            {asString(ctx.scriptHi) && lang === 'hi'
-              ? asString(ctx.scriptHi)
-              : (asString(ctx.script) ??
-                t('scriptNeighbour', {
-                  neighbour: asString(neighbour.name) ?? (lang === 'hi' ? 'पड़ोसी' : 'neighbour'),
-                  parent,
-                  address: address || '—',
-                }))}
+            {pickScript(
+              lang,
+              ctx,
+              t('scriptNeighbour', {
+                neighbour: asString(neighbour.name) ?? (lang === 'hi' ? 'पड़ोसी' : 'neighbour'),
+                parent,
+                address: address || '—',
+              }),
+            )}
           </p>
           {address && (
             <p>
@@ -158,7 +168,7 @@ export function TaskCard({ task, parentName, parentPhone, onComplete, inlineCase
     case 'emergency':
       body = (
         <>
-          <p className="pre">{asString(ctx.script) ?? t('script112', { since: since || '—', address: address || '—' })}</p>
+          <p className="pre">{pickScript(lang, ctx, t('script112', { since: since || '—', address: address || '—' }))}</p>
           <div className="task-actions">
             <a className="btn btn-danger btn-big" href="tel:112">
               {t('call112')}
