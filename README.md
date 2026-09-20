@@ -8,7 +8,8 @@ came from an outsider. Doosri Raay is the outsider: the adult child is the user,
 duress, and after a loss the app runs the whole recovery pipeline instead of showing a 1930 button.
 
 Built for **First Commit, Event 01 of the Bharat Builds Tour by WeMakeDevs with AWS Builder Center,
-17–20 September 2026** (one submission for Build It, Ship It and Best UI). One SAM stack in ap-south-1 plus
+17–20 September 2026**, submitted for **Ship It** (deployed on AWS) and **Build It** (Strands Agents SDK, AWS SAM,
+LocalStack and Cedar, all in the same code; one submission is considered for Build It, Ship It and Best UI). One SAM stack in ap-south-1 plus
 Amplify Hosting; Bedrock is reached through global inference profiles. Submission answers: `docs/SUBMISSION.md`.
 
 ## Try it (no sign-up)
@@ -228,7 +229,7 @@ twelve-point version with specifics: `docs/SUBMISSION.md`.
 
 ```bash
 pip install -r backend/requirements.txt pytest
-make test                        # pytest -q tests backend (98 tests)
+make test                        # pytest -q tests backend (230 tests)
 python eval/run_eval.py --dry-run  # harness only, keyword stub, produces no model numbers
 python scripts/verify_sources.py   # downloads and hashes every cited source, checks every quote
 make local-up && make local-bootstrap && make local-api   # LocalStack (S3 + DynamoDB) + sam local on :3000
@@ -310,9 +311,11 @@ locally (230 backend tests). Current status:
   closes open tasks, clears today's check-in) and clears the browser's local state.
 - `/try` lands a judge in one of several seeded judge circles without sign-up, so one judge's reset cannot stop
   another's ladder; the recording circle is separate. `DemoTimeouts=1`: Watch deadline now + 45 s, ladder rungs
-  45 s, confirm-fields 120 s, 1930 and NCRP timers 45 s (`GET /demo/config` reports it).
-- Seeded circle "Sharma family" (`make seed` / `scripts/seed.py`): Papa (parent, Pune; neighbour Sharma ji; code
-  word set), Priya (guardian 1), Rahul (guardian 2), Aman (son, Puchho code-word challenge).
+  45 s, confirm-fields 15 min, the 1930 call 90 s, NCRP 120 s, MRM 120 s (`GET /demo/config` reports them and
+  the case page shows them beside each waiting step).
+- Seeded circle "Sharma family" (`make seed` / `scripts/seed.py`): Papa (parent, Pune; neighbour Verma ji; code
+  word set; pact accepted), Priya (guardian 1), Rahul (guardian 2), Aman (son, Puchho code-word challenge); plus
+  three independent judge circles (`judge1..3@demo.doosriraay.in` with their own parents, guardians and sons).
 - Synthetic screenshots for the recovery flow and the checker (two UPI receipts, a WhatsApp "CBI" message, a
   courier customs SMS, a KYC phishing SMS, a genuine bank OTP, a prompt-injection probe) are in
   `scripts/seed_demo_screenshots/`; `python scripts/make_screenshots.py` regenerates them. All content is
@@ -336,7 +339,7 @@ locally (230 backend tests). Current status:
 
 | Role | Name | Work (from the git history) |
 |---|---|---|
-| Frontend | Rajat Nagda | React PWA, bilingual auth, parent tile with check-in / Puchho / covert SOS, guardian dashboard and task cards, case intake and detail with source lines, Settings, `/demo`, `/try`, service worker, Web Push |
+| Frontend, deployment and operations | Rajat Nagda | React PWA, bilingual auth, parent tile with check-in / Puchho / covert SOS, guardian dashboard and task cards, case intake and detail with source lines, Settings, `/demo`, `/try`, service worker, Web Push; the AWS account, Bedrock access, `sam deploy`, SSM key, Amplify Hosting with the rewrite rule, seeding the demo and judge circles, the sources upload, the live smoke test |
 | Backend and model | Abhay Singh | API handlers, classifier worker (forced tool use), Strands recovery agent with deterministic fallback, narrative re-check, rules as data, sources verification, Polly cache, eval set and harness, 230 tests |
 | Infrastructure and Step Functions | Abhay Singh | SAM template, three state machines with `waitForTaskToken` + `TimeoutSecondsPath`, Makefile, container image, LocalStack local mode, first-deploy checklist |
 | Product, demo and research | Rajat Nagda | 25-case research and the pivot, sourced numbers, prior art, contracts, seed data and synthetic screenshots, demo script, README, submission, blog, pact card |
