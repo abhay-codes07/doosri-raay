@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-20T11:08:03Z",
+  "generatedAt": "2026-09-20T14:15:29Z",
   "generator": "scripts/verify_sources.py",
   "summary": {
     "sources": 13,
@@ -8,9 +8,9 @@
       "https://www.weforum.org/publications/global-risks-report-2026/in-full/global-risks-report-2026-key-findings/"
     ],
     "citations": 25,
-    "citationsVerified": 25,
+    "citationsVerified": 13,
     "citationsMissing": [],
-    "citationsUnchecked": 0
+    "citationsUnchecked": 12
   },
   "sources": [
     {
@@ -23,83 +23,84 @@
       "contentType": "application/pdf",
       "sha256": "93ae8daf0381221dbdee99f258832c6e94ab2719c755096320e712829bb66be6",
       "bytes": 471872,
-      "fetchedAt": "2026-09-20T11:07:53Z",
-      "error": null,
+      "fetchedAt": "2026-09-20T14:15:24Z",
+      "error": "pypdf not installed; quotes not checked (pip install pypdf)",
       "quotes": [
         {
           "file": "backend/classify_worker/patterns.json",
           "path": "generalAdvice",
           "quote": "Speak to your relatives and friends before taking any action to transfer money.",
-          "quoteFound": true
+          "quoteFound": null
         },
         {
           "file": "backend/classify_worker/patterns.json",
           "path": "reportAdvice",
           "quote": "Report cyber frauds immediately at www.cybercrime.gov.in or by calling 1930.",
-          "quoteFound": true
+          "quoteFound": null
         },
         {
           "file": "backend/classify_worker/patterns.json",
           "path": "patterns[0].advisory",
           "quote": "There is no concept of Digital Arrest under any Indian Laws.",
-          "quoteFound": true
+          "quoteFound": null
         },
         {
           "file": "backend/classify_worker/patterns.json",
           "path": "patterns[1].advisory",
           "quote": "use of their Aadhaar card and registered mobile number in illegal activities",
-          "quoteFound": true
+          "quoteFound": null
         },
         {
           "file": "backend/classify_worker/patterns.json",
           "path": "patterns[2].advisory",
           "quote": "sending or receiving contraband items like drugs or fake passports or SIM cards through FedEx or DHL",
-          "quoteFound": true
+          "quoteFound": null
         },
         {
           "file": "backend/classify_worker/patterns.json",
           "path": "patterns[3].advisory",
           "quote": "Claims may also involve a loved one supposedly caught in criminal activities or accidents.",
-          "quoteFound": true
+          "quoteFound": null
         },
         {
           "file": "backend/classify_worker/patterns.json",
           "path": "patterns[4].advisory",
           "quote": "Never share personal or financial information over the phone, email, or messaging apps without verifying the request.",
-          "quoteFound": true
+          "quoteFound": null
         },
         {
           "file": "backend/classify_worker/patterns.json",
           "path": "patterns[5].advisory",
           "quote": "Always verify the identity of the caller or sender before taking any action",
-          "quoteFound": true
+          "quoteFound": null
         },
         {
           "file": "backend/classify_worker/patterns.json",
           "path": "patterns[6].advisory",
           "quote": "Speak to your relatives and friends before taking any action to transfer money.",
-          "quoteFound": true
+          "quoteFound": null
         },
         {
           "file": "backend/classify_worker/patterns.json",
           "path": "patterns[7].advisory",
           "quote": "Never share personal or financial information over the phone, email, or messaging apps without verifying the request.",
-          "quoteFound": true
+          "quoteFound": null
         },
         {
           "file": "backend/classify_worker/patterns.json",
           "path": "patterns[8].advisory",
           "quote": "Speak to your relatives and friends before taking any action to transfer money.",
-          "quoteFound": true
+          "quoteFound": null
         },
         {
           "file": "backend/classify_worker/patterns.json",
           "path": "patterns[9].advisory",
           "quote": "Never share personal or financial information over the phone, email, or messaging apps without verifying the request.",
-          "quoteFound": true
+          "quoteFound": null
         }
       ],
-      "quoteFound": true
+      "quoteFound": null,
+      "s3Key": "sources/93ae8daf0381221dbdee99f258832c6e94ab2719c755096320e712829bb66be6.pdf"
     },
     {
       "id": "ncrp_home",
@@ -109,9 +110,9 @@
       "fetched": true,
       "httpStatus": 200,
       "contentType": "text/html; charset=utf-8",
-      "sha256": "69cea44562af719a7f0ce7ca98067be9dd51b62a89e897749ebb29ab961b6b9b",
+      "sha256": "d2671b425963b6e25c80e67c8ca6e7418dee586af935b2917da04c3b4207c78d",
       "bytes": 80575,
-      "fetchedAt": "2026-09-20T11:07:54Z",
+      "fetchedAt": "2026-09-20T14:15:24Z",
       "error": null,
       "quotes": [
         {
@@ -121,7 +122,8 @@
           "quoteFound": true
         }
       ],
-      "quoteFound": true
+      "quoteFound": true,
+      "s3Key": "sources/d2671b425963b6e25c80e67c8ca6e7418dee586af935b2917da04c3b4207c78d.html"
     },
     {
       "id": "ncrp_login_checklist",
@@ -131,9 +133,9 @@
       "fetched": true,
       "httpStatus": 200,
       "contentType": "text/html; charset=utf-8",
-      "sha256": "fab6ac3c419dd57d8acef3b347045c329dedbc3a13af938f66214cb0c9e29ccd",
+      "sha256": "1b071a925210babfe81e123ead9021f5892ea7edb218f1a7d5fcdb97194cb577",
       "bytes": 89704,
-      "fetchedAt": "2026-09-20T11:07:55Z",
+      "fetchedAt": "2026-09-20T14:15:25Z",
       "error": null,
       "quotes": [
         {
@@ -155,7 +157,8 @@
           "quoteFound": true
         }
       ],
-      "quoteFound": true
+      "quoteFound": true,
+      "s3Key": "sources/1b071a925210babfe81e123ead9021f5892ea7edb218f1a7d5fcdb97194cb577.html"
     },
     {
       "id": "sanchar_saathi",
@@ -165,9 +168,9 @@
       "fetched": true,
       "httpStatus": 200,
       "contentType": "text/html;charset=UTF-8",
-      "sha256": "6034bc5dafcfe33681fce31f4fe41b9fd61c2ee5c13f4c633b14b00a155269d3",
+      "sha256": "0fd40c3a1d0501397476786f26622d77ccaa0206386021dd466026beac0c9f42",
       "bytes": 3024414,
-      "fetchedAt": "2026-09-20T11:07:56Z",
+      "fetchedAt": "2026-09-20T14:15:25Z",
       "error": null,
       "quotes": [
         {
@@ -177,7 +180,8 @@
           "quoteFound": true
         }
       ],
-      "quoteFound": true
+      "quoteFound": true,
+      "s3Key": "sources/0fd40c3a1d0501397476786f26622d77ccaa0206386021dd466026beac0c9f42.html"
     },
     {
       "id": "i4c_home",
@@ -187,12 +191,13 @@
       "fetched": true,
       "httpStatus": 200,
       "contentType": "text/html; charset=utf-8",
-      "sha256": "3f16d9b495baea33f8cc3af80f3ddf273cbf080de6d5101e0e9216fe1ac2bef6",
+      "sha256": "0828941e2cb94e4c494f8c716dbec8b8a545ad0fef7f95ce86322d3493d9e7e0",
       "bytes": 69393,
-      "fetchedAt": "2026-09-20T11:07:57Z",
+      "fetchedAt": "2026-09-20T14:15:26Z",
       "error": null,
       "quotes": [],
-      "quoteFound": null
+      "quoteFound": null,
+      "s3Key": "sources/0828941e2cb94e4c494f8c716dbec8b8a545ad0fef7f95ce86322d3493d9e7e0.html"
     },
     {
       "id": "wef_global_risks_2026",
@@ -204,7 +209,7 @@
       "contentType": "text/html",
       "sha256": null,
       "bytes": null,
-      "fetchedAt": "2026-09-20T11:07:58Z",
+      "fetchedAt": "2026-09-20T14:15:26Z",
       "error": "HTTP 403",
       "quotes": [],
       "quoteFound": null
@@ -219,7 +224,7 @@
       "contentType": "text/html; charset=utf-8",
       "sha256": "6de4462bcb2de11412a14780078e0b6d4a3bc7b97a67817f8c90e68cc69235d6",
       "bytes": 399518,
-      "fetchedAt": "2026-09-20T11:07:58Z",
+      "fetchedAt": "2026-09-20T14:15:26Z",
       "error": null,
       "quotes": [
         {
@@ -229,7 +234,8 @@
           "quoteFound": true
         }
       ],
-      "quoteFound": true
+      "quoteFound": true,
+      "s3Key": "sources/6de4462bcb2de11412a14780078e0b6d4a3bc7b97a67817f8c90e68cc69235d6.html"
     },
     {
       "id": null,
@@ -241,7 +247,7 @@
       "contentType": "text/html;charset=UTF-8",
       "sha256": "cf121b3babcb5e89bc5fb6d71aff0e64d7d515d7d6ea8c291875e176ec74ce68",
       "bytes": 225146,
-      "fetchedAt": "2026-09-20T11:07:59Z",
+      "fetchedAt": "2026-09-20T14:15:27Z",
       "error": null,
       "quotes": [
         {
@@ -251,7 +257,8 @@
           "quoteFound": true
         }
       ],
-      "quoteFound": true
+      "quoteFound": true,
+      "s3Key": "sources/cf121b3babcb5e89bc5fb6d71aff0e64d7d515d7d6ea8c291875e176ec74ce68.html"
     },
     {
       "id": null,
@@ -261,9 +268,9 @@
       "fetched": true,
       "httpStatus": 200,
       "contentType": "text/html; charset=utf-8",
-      "sha256": "61f558c943711e3b94ff78e7c74895d1d924d12fe1449ad03b3eefd398ebab33",
-      "bytes": 1546156,
-      "fetchedAt": "2026-09-20T11:08:00Z",
+      "sha256": "b6dc37fbd2b3acbb34c45323ad80f37261851a90f192c752a4c2be1c17a03ce1",
+      "bytes": 1546511,
+      "fetchedAt": "2026-09-20T14:15:27Z",
       "error": null,
       "quotes": [
         {
@@ -273,7 +280,8 @@
           "quoteFound": true
         }
       ],
-      "quoteFound": true
+      "quoteFound": true,
+      "s3Key": "sources/b6dc37fbd2b3acbb34c45323ad80f37261851a90f192c752a4c2be1c17a03ce1.html"
     },
     {
       "id": null,
@@ -283,9 +291,9 @@
       "fetched": true,
       "httpStatus": 200,
       "contentType": "text/html; charset=utf-8",
-      "sha256": "6e044298c2268a17be372246ccc617981e28177e4fde8662e22260512cd11701",
-      "bytes": 1549095,
-      "fetchedAt": "2026-09-20T11:08:01Z",
+      "sha256": "fb34eaefb65da048d9a2a11ee0158565ccd5eaa794462bac93eab99cf19dc882",
+      "bytes": 1549128,
+      "fetchedAt": "2026-09-20T14:15:28Z",
       "error": null,
       "quotes": [
         {
@@ -295,7 +303,8 @@
           "quoteFound": true
         }
       ],
-      "quoteFound": true
+      "quoteFound": true,
+      "s3Key": "sources/fb34eaefb65da048d9a2a11ee0158565ccd5eaa794462bac93eab99cf19dc882.html"
     },
     {
       "id": null,
@@ -307,7 +316,7 @@
       "contentType": "text/html; charset=utf-8",
       "sha256": "0d772312fed3e9d384b3e68338dd59a1ea5261e7291fc70fa38d2d237cad88fc",
       "bytes": 362836,
-      "fetchedAt": "2026-09-20T11:08:02Z",
+      "fetchedAt": "2026-09-20T14:15:28Z",
       "error": null,
       "quotes": [
         {
@@ -317,7 +326,8 @@
           "quoteFound": true
         }
       ],
-      "quoteFound": true
+      "quoteFound": true,
+      "s3Key": "sources/0d772312fed3e9d384b3e68338dd59a1ea5261e7291fc70fa38d2d237cad88fc.html"
     },
     {
       "id": null,
@@ -327,9 +337,9 @@
       "fetched": true,
       "httpStatus": 200,
       "contentType": "text/html; charset=UTF-8",
-      "sha256": "4c956897daef6995bfdec724d82406f6ce123a9514f46f6f32ff86797822fbc6",
+      "sha256": "56405cb6ccb9eb155a1515d2e946ccf2590df27360c93232607aaa334dca1ccc",
       "bytes": 102339,
-      "fetchedAt": "2026-09-20T11:08:03Z",
+      "fetchedAt": "2026-09-20T14:15:29Z",
       "error": null,
       "quotes": [
         {
@@ -345,7 +355,8 @@
           "quoteFound": true
         }
       ],
-      "quoteFound": true
+      "quoteFound": true,
+      "s3Key": "sources/56405cb6ccb9eb155a1515d2e946ccf2590df27360c93232607aaa334dca1ccc.html"
     },
     {
       "id": null,
@@ -355,9 +366,9 @@
       "fetched": true,
       "httpStatus": 200,
       "contentType": "text/html; charset=UTF-8",
-      "sha256": "ad94e2830e78eb2df3b3903d341a8c2c910fd156f9ebc1e89ba06df51e66d28b",
+      "sha256": "94332558175b73e939d494b3e20debaaff931307c0aa526a3bdc8b9772af2a5e",
       "bytes": 208089,
-      "fetchedAt": "2026-09-20T11:08:03Z",
+      "fetchedAt": "2026-09-20T14:15:29Z",
       "error": null,
       "quotes": [
         {
@@ -367,7 +378,8 @@
           "quoteFound": true
         }
       ],
-      "quoteFound": true
+      "quoteFound": true,
+      "s3Key": "sources/94332558175b73e939d494b3e20debaaff931307c0aa526a3bdc8b9772af2a5e.html"
     }
   ]
 }
