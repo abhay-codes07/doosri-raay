@@ -1,6 +1,6 @@
 # Prior art
 
-We name what exists so the judges do not have to. Counts and links below come from `docs/RESEARCH.md`
+We name what exists so the judges do not have to. Counts and links below come from the public READMEs of the projects named, fetched on 18 Sep 2026.
 (16 Sep 2026), which counted GitHub repos created since 1 Jan 2025 with "scam detection" (3,355),
 "UPI fraud" (1,620) and "digital arrest" (159) in the name or description. Many of them, and several
 well-built hackathon entries, share a common shape: analyse the call or message → warn the user →

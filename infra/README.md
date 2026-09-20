@@ -130,7 +130,7 @@ Run the stack the judges touch as its own deployment (`STACK=doosriraay-judge`, 
 | `DemoSeedEnabled` | `0` | `make seed` goes through `/circles` + `/circles/join`; `POST /demo/seed` stays closed |
 | `DailyQuota` | `200` | several judges share one stack and one circle; `30` LLM calls a day would run out mid-session |
 | `AppOrigins` | `https://<branch>.<appId>.amplifyapp.com,http://localhost:5173` | the Amplify URL (no trailing slash) plus the Vite dev origin; both API Gateway and S3 CORS read it |
-| `BudgetEmail` | your address | **set it or you have no cost alarm**; also the source of the Budgets console shot in `docs/DEMO.md` |
+| `BudgetEmail` | your address | **set it or you have no cost alarm**; also what makes the Budgets console show anything|
 | `VapidPublicKey` | the public half of `npx web-push generate-vapid-keys` | push works only with the private half in SSM, next step |
 
 ```bash

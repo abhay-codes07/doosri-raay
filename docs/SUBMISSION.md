@@ -41,7 +41,7 @@ happened to read a newspaper (Alwar, after 165 days). Victims' own words: "quest
 dangerous than obeying it"; "we felt almost hypnotised" (Hindustan Times, Lucknow, Jan 2026). Two more
 facts made a victim-side detector the wrong frame: 82% of Singapore's scam losses are self-authorised
 transfers (Singapore Police Force, 2025) and security warnings habituate by the second exposure (Anderson et
-al., CHI 2015). Sources with ids are in `docs/RESEARCH.md`; a widely quoted "51% never report" figure is
+al., CHI 2015). Sources are cited inline; a widely quoted "51% never report" figure is
 deliberately left out because we could not verify it.
 
 ## What the project does
@@ -93,7 +93,7 @@ Repository: `<REPO_URL>` (public, MIT).
 
 ## Demo video
 
-`<YOUTUBE_URL>` (unlisted, 3:00). Shot list with the timestamp of every AWS service: `docs/DEMO.md`.
+`<YOUTUBE_URL>` (unlisted, 3:00). Every AWS service is shown in the video; timestamps are in the README's services table.
 
 ## AWS services used, and how
 

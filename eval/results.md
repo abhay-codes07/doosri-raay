@@ -37,6 +37,6 @@ recall, a confusion matrix of expected vs predicted state, per-language accuracy
 that the word "safe" never appears in the model's `sayHi` / `sayEn`.
 
 **Caveat that will still apply after the run.** This is a hand-built 70-item set written by the team, not
-field accuracy, and it says nothing about base rates in real inboxes. `docs/RESEARCH.md` section 4 is why we
+field accuracy, and it says nothing about base rates in real inboxes. The design rationale in the README is why we
 report three states and treat a false "no red flags" as the worst failure. Public Hindi scam datasets are
 tiny (~120 messages), so a larger eval is roadmap, not a claim.

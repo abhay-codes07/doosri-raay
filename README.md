@@ -32,7 +32,7 @@ Amplify Hosting; Bedrock is reached through global inference profiles. Submissio
 
 | Number | What it is | Source |
 |---|---|---|
-| **₹22,495 crore** | Lost to cyber fraud in India in 2025 | MHA figures (`docs/RESEARCH.md`, §5) |
+| **₹22,495 crore** | Lost to cyber fraud in India in 2025 | MHA figures, 2025 |
 | **1,03,488 complaints, ₹4,005 crore** | Senior-citizen cyber-fraud complaints and losses | MHA reply in the Rajya Sabha, 5 Aug 2026 (ANI) |
 | **2,97,727 complaints, ₹4,057.7 crore** | Digital-arrest complaints and losses since 2022 (to May 2026) | Government data reported by News18, Jul 2026 |
 | **5% → 2.2%** | Karnataka's recovery rate for digital-arrest losses, 2025 vs Jan–Feb 2026 | Times of India, Bengaluru, Mar 2026 |
@@ -49,7 +49,7 @@ payee-risk checks do not fire). Warnings habituate by the second exposure (Ander
 scammer orders the victim to ignore them. And the victim cannot act: across 25 documented Indian digital-arrest
 cases (2025–26) every save came from a bank manager (Pune ₹14L, Nalgonda ₹18L, Lucknow ₹1.5cr), a relative
 (Bhopal, Moradabad, Indore) or the police (Rajkot, 112). "We felt almost hypnotised" (HT Lucknow, Jan 2026).
-Sources with ids: `docs/RESEARCH.md` §7.
+Sources are cited inline and in `docs/sources-manifest.json`.
 
 ## What Doosri Raay does
 
@@ -176,7 +176,7 @@ itself visible in the console. Contracts: `docs/API.md`, `docs/DATA_MODEL.md`, `
 
 ## AWS services and where each appears in the video
 
-Timestamps follow `docs/DEMO.md`. "Tour" is shot 7 (2:05–2:29, 2 s per service).
+Timestamps refer to the demo video. "Tour" is the console walk-through (2:05–2:29, 2 s per service).
 
 | Service | How it is used (`infra/template.yaml`) | In a flow | Tour |
 |---|---|---|---|
@@ -287,7 +287,7 @@ benign controls that look like real Indian messages, 14 adversarially softened s
 runs them against Bedrock (Sonnet 4.6 and Haiku 4.5) and writes per-pretext precision/recall/F1, the benign
 false-positive rate, adversarial recall, a confusion matrix, per-language accuracy and a check that "safe"
 never appears in `sayHi`/`sayEn`. That run has not been executed, so `eval/results.md` is a labelled
-placeholder and this README claims no accuracy. Why three states rather than two: `docs/RESEARCH.md` §4.
+placeholder and this README claims no accuracy. Three states rather than two because two-state detectors get switched off after the first false alarm.
 
 ## Deployment status
 
@@ -360,7 +360,7 @@ end-to-end recovery pipeline; a deployable product with an evaluation harness): 
 Claude Code (Claude Fable 5.1) was used for research synthesis, architecture and code generation across the
 repo and ran the local tests and builds; it never had AWS credentials. All AWS deployment, the eval run against
 Bedrock and the demo are done by the team. Runtime models are Claude Sonnet 4.6 and Haiku 4.5 on Amazon
-Bedrock. Full disclosure: **`docs/AI_TOOLS.md`**. Blog draft: `docs/BLOG.md`.
+Bedrock. Full disclosure: **`docs/AI_TOOLS.md`**.
 
 ## Licence and third-party notices
 
