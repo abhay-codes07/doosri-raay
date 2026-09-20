@@ -66,6 +66,7 @@ export const KEYS = {
   geocode: (city: string) => `dr:geo:${city.toLowerCase()}`,
   weather: (city: string) => `dr:wx:${city.toLowerCase()}`,
   pushDone: (id: string) => `dr:${id}:push`,
+  pendingSos: (id: string) => `dr:${id}:sos`,
 } as const;
 
 /** Local screenshot previews keyed by objectKey (data URLs, small). */

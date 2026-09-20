@@ -12,11 +12,20 @@ import { dayOfYearIST, formatDateEn, formatDateHi, istDateString } from '../lib/
 import { geoPermissionState, retryInBackground, sosLocation, startPositionWatch } from '../lib/geo';
 import { moonEmoji, tithiForIstDay, vikramSamvat } from '../lib/panchang';
 import { normalizeMedicines } from '../lib/medicines';
-import { KEYS, readJson, readString, writeJson, writeString } from '../lib/storage';
+import { KEYS, readJson, readString, remove, writeJson, writeString } from '../lib/storage';
 import { describeWeatherCode, fetchWeather, staleWeather, type Weather } from '../lib/weather';
 
 const TRIPLE_TAP_WINDOW_MS = 1500;
 const CHECKIN_RETRY_MS = 30000;
+/** A pending SOS older than this is dropped rather than re-sent as a stale alarm. */
+const SOS_PENDING_MAX_MS = 24 * 3600 * 1000;
+
+interface PendingSos {
+  lat: number;
+  lon: number;
+  accuracy: number;
+  at: number;
+}
 
 /**
  * The Panchang tile. Everything here is ordinary and useful; nothing mentions alerts or the ladder.
@@ -111,13 +120,48 @@ function ParentTile({ embedded, onSignOut }: { embedded: boolean; onSignOut?: ()
   }, [profile]);
   const taps = useRef<number[]>([]);
   const [flick, setFlick] = useState(false);
+  // The SOS is written to localStorage first and only removed after a 2xx, so a tap on a flaky
+  // connection is retried when the network returns, the tab becomes visible, or the tile reopens.
+  const sosKey = KEYS.pendingSos(identity);
+  const flushing = useRef(false);
+  const flushSos = useCallback(async () => {
+    if (flushing.current) return;
+    const pending = readJson<PendingSos | null>(sosKey, null);
+    if (!pending || typeof pending.at !== 'number') return;
+    if (Date.now() - pending.at > SOS_PENDING_MAX_MS) {
+      remove(sosKey);
+      return;
+    }
+    flushing.current = true;
+    try {
+      const ok = await retryInBackground(() => api.sos({ lat: pending.lat, lon: pending.lon, accuracy: pending.accuracy }), 3);
+      // only clear the entry we sent; a newer tap may have replaced it meanwhile
+      if (ok && readJson<PendingSos | null>(sosKey, null)?.at === pending.at) remove(sosKey);
+    } finally {
+      flushing.current = false;
+    }
+  }, [api, sosKey]);
+  useEffect(() => {
+    if (!profile || profile.role !== 'parent') return undefined;
+    void flushSos();
+    const onOnline = () => void flushSos();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void flushSos();
+    };
+    window.addEventListener('online', onOnline);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [flushSos, profile]);
   const sendSos = useCallback(() => {
     setFlick(true);
     window.setTimeout(() => setFlick(false), 200);
     const loc = sosLocation();
-    // fire immediately; retry up to 3 times with backoff, silently
-    void retryInBackground(() => api.sos(loc), 3);
-  }, [api]);
+    writeJson(sosKey, { ...loc, at: Date.now() } satisfies PendingSos);
+    void flushSos();
+  }, [flushSos, sosKey]);
   const onDateTap = () => {
     const nowMs = Date.now();
     taps.current = [...taps.current.filter((ts) => nowMs - ts <= TRIPLE_TAP_WINDOW_MS), nowMs];
