@@ -49,7 +49,7 @@ Input (from any state):
 Creates the TASK item (text generated from kind + circle data, Hindi and English), stores the token when `wait` is true, sends push to the assignee (and to all guardians for `emergency`/`sos`). Returns `{"taskId": "..."}`. When `wait` is false, the state uses plain `arn:aws:states:::lambda:invoke`.
 
 ### `watch-check`, `ladder-status`
-Small DynamoDB helpers, see backend README.
+Small DynamoDB helpers, see backend README. `watch-check` also receives `executionArn` and answers `checkedIn: true, superseded: true` when it is not the parent's `activeWatchArn` (a newer check-in restarted the watch). `ladder-task` on rung 1 of a `missed_checkin` ladder re-checks for a check-in later than `watchSinceTs` and, if found, resolves the token itself (`{"taskId": null, "resolved": true}`); on `emergency` it never raises (`{"taskId": null, "error": ...}`). No state depends on `taskId` being present.
 
 ### `recovery-agent` (container)
 `{"action":"extract"|"build"|"mrm"|"finalize"|"fail","circleId","caseId","error"?}`. Uses Strands `Agent` with tools `extract_transactions`, `validate_fields`, `lookup_ezero_threshold`, `mrm_eligibility`, `draft_narrative`. Deterministic parts (validation, templates, thresholds, MRM rules) are plain Python and unit-tested; the LLM only sees images (marked untrusted) and writes the narrative.

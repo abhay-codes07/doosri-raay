@@ -78,8 +78,7 @@ tile and the guardian dashboard side by side in one browser.
 
 ## Live demo
 
-**`<AMPLIFY_URL>/try` — no sign-up needed.** The `/try` route (being added to the frontend at the time of
-writing; `/demo` with the accounts below is the fallback) drops a judge into a seeded judge circle
+**`<AMPLIFY_URL>/try` — no sign-up needed.** The `/try` route drops a judge into a seeded judge circle
 (parent tile on the left, guardian dashboard on the right) without creating an account. Timers on the judge
 stack are the 45-second demo timers, so a missed check-in escalates while you watch; press "Reset demo" first
 if a previous judge left a ladder running.
@@ -232,9 +231,9 @@ Polly, Amplify Hosting) and five for operations (SSM, ECR, Budgets, CloudWatch L
   "Running it locally" section for exactly what runs locally and what does not.
 - **Cedar** for authorization: which role may complete which task kind, open or read a case, upload a photo
   or reset the demo as a policy set in `backend/common/authz/policies.cedar`, evaluated inside the API
-  Lambda with the caller's role and circle as the principal. *Status at the time of writing: planned; the
-  same checks are enforced in the handlers today (circle from the caller's profile, 404 on mismatch,
-  assignee check on task completion) and covered by tests.*
+  Lambda with the caller's role and circle as the principal (`cedarpy`, the Rust engine, with a fallback
+  evaluator of the same file); `forbid` rules carry `@id`s that become bilingual 403 messages, and a 16-row
+  policy table is tested against both engines.
 
 ## Team
 

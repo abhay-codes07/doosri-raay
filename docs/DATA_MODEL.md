@@ -6,13 +6,13 @@ Keys: `PK` (S), `SK` (S). GSI1: `GSI1PK`/`GSI1SK` (used for `CIRCLE#<id>` open t
 |---|---|---|---|
 | Profile | `USER#<sub>` | `PROFILE` | `sub, email, name, lang (hi/en), city, state, phone, role (parent/guardian1/guardian2/son), circleId, checkinHourIST, holidayMode, neighbour{name,phone,address}, codeWord, pushSub (JSON), createdAt, updatedAt` |
 | Circle meta | `CIRCLE#<id>` | `META` | `circleId, name, inviteCode, createdBy, createdAt` ; `GSI1PK=INVITE#<code>`, `GSI1SK=CIRCLE#<id>` |
-| Member | `CIRCLE#<id>` | `MEMBER#<sub>` | `sub, name, role, phone, joinedAt, activeWatchArn, activeLadderArn, ladderState (parent only)` |
+| Member | `CIRCLE#<id>` | `MEMBER#<sub>` | `sub, name, role, phone, joinedAt, activeWatchArn, watchSinceTs, activeLadderArn, activeLadderReason, ladderState (parent only)` |
 | Check-in | `CIRCLE#<id>` | `CHECKIN#<YYYY-MM-DD>` | `ts, source (tile/sos), date` |
 | SOS | `CIRCLE#<id>` | `SOS#<ts>` | `lat, lon, accuracy, ts, ladderExecutionArn, ttl` |
 | Task | `CIRCLE#<id>` | `TASK#<ts>#<id>` | `taskId, kind, text, textHi, assigneeSub, assigneeName, status (open/done/expired), outcome, taskToken (never returned to clients), context (map), allowedOutcomes (list), createdAt, expiresAt, completedAt, completedBy, ttl` ; `GSI1PK=TASKID#<id>`, `GSI1SK=CIRCLE#<id>` (lookup by id) |
 | Report | `CIRCLE#<id>` | `REPORT#<id>` | `reportId, status, input {objectKey|text}, verdict (map), modelId, error, createdAt, updatedAt, ttl (30 days)` ; `GSI1PK=REPORTID#<id>` |
-| Case | `CIRCLE#<id>` | `CASE#<id>` | `caseId, status, victimName, state, incidentDate, narrativeHint, objectKeys, extracted, confirmedTxns, artifacts, ackNo, openTaskId, executionArn, createdAt, updatedAt` ; `GSI1PK=CASEID#<id>` |
-| Quota | `QUOTA#<sub>` | `<YYYY-MM-DD>` | `count, ttl` (atomic `ADD count 1` with condition `count < DAILY_QUOTA`) |
+| Case | `CIRCLE#<id>` | `CASE#<id>` | `caseId, status, victimName, state, incidentDate, narrativeHint, objectKeys, extracted, confirmedTxns, artifacts, ackNo, openTaskId, executionArn (never returned), agentPath (strands/fallback), agentError, agentToolCalls, createdAt, updatedAt` ; `GSI1PK=CASEID#<id>` |
+| Quota | `QUOTA#<sub>` | `<YYYY-MM-DD>`, `<YYYY-MM-DD>#uploads`, `<YYYY-MM-DD>#sos` | `count, ttl` (atomic `ADD count n` with a conditional cap) |
 
 Lookups by id (`/tasks/{id}`, `/reports/{id}`, `/cases/{id}`) go through GSI1 (`GSI1PK=TASKID#<id>` etc.), then the item's `circleId` is compared with the caller's.
 
@@ -47,9 +47,9 @@ Lookups by id (`/tasks/{id}`, `/reports/{id}`, `/cases/{id}`) go through GSI1 (`
 |---|---|---|
 | Watch deadline | next `checkinHourIST` IST | now + 45 |
 | Ladder rung 1–3 | 900 | 45 |
-| RecoveryCase ConfirmFields | 86400 | 120 |
-| RecoveryCase Call1930 | 900 | 45 |
-| RecoveryCase NCRPFiled | 86400 | 45 |
+| RecoveryCase ConfirmFields | 86400 | 900 |
+| RecoveryCase Call1930 | 900 | 90 |
+| RecoveryCase NCRPFiled | 86400 | 120 |
 | RecoveryCase MRM | 604800 | 120 |
 
 The api Lambda computes these and passes them in the execution input as `timeouts`; state machines use `TimeoutSecondsPath`.

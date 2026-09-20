@@ -72,7 +72,7 @@ Kinds and allowed outcomes:
 {"outcome":"no_answer"}
 ```
 or for `confirm_fields`: `{"outcome":"confirmed","txns":[{...}]}`; for `ncrp_filed`: `{"outcome":"filed","ackNo":"32901234567890"}`.
-Validates outcome ∈ allowedOutcomes, `ackNo` matches `^\d{14}$` (a `warning` is returned if it does not start with 329, the prefix reported in the press), txns pass `validate_fields` (UPI/IMPS 12 digits or NEFT/RTGS 16–22 alphanumerics; invalid rows → `400 invalid_txns` listing the rows). For `confirm_fields`/`ncrp_filed` the confirmed txns / ackNo are persisted on the CASE first. Calls `SendTaskSuccess(taskToken, output={"outcome":..., "txns":..., "ackNo":...})` first, then marks the task `done`; any other Step Functions error → `502 step_functions_error` and the task stays open. If the task has no token (informational), just closes. Idempotent: completing a `done` task returns `200` without a second SendTaskSuccess. `200 {"taskId":..., "status":"done"}`.
+Validates outcome ∈ allowedOutcomes, `ackNo` matches `^\d{14}$` (a `warning` is returned if it does not start with 329, the prefix reported in the press), txns pass `validate_fields` (UPI/IMPS 12 digits or NEFT/RTGS 16–22 alphanumerics; invalid rows → `400 invalid_txns` listing the rows). For `confirm_fields`/`ncrp_filed` the confirmed txns / ackNo are persisted on the CASE first. Calls `SendTaskSuccess(taskToken, output={"outcome":..., "txns":..., "ackNo":...})` first, then marks the task `done`; any other Step Functions error → `502 step_functions_error` and the task stays open. If the task has no token (informational), just closes. Idempotent: completing a `done` task returns `200` without a second SendTaskSuccess. If Step Functions reports the token timed out, the task is closed as `expired` and the call returns `409 {"error":"task_expired"}` so the client reloads. Creating a new token task expires earlier open tasks of the same kind for the same parent/case. `200 {"taskId":..., "status":"done", "warning"?:...}`.
 
 ## Classifier (minor tool)
 
@@ -135,6 +135,17 @@ Both also create an informational TASK for guardians ("Papa was told X at HH:MM"
 ### `GET /puchho/{taskId}`
 Parent polls: `{"status":"open"|"done","outcome":"yes"|"no"|null,"codeWordMatched":true|false|null}`. The son's completion body may include `{"codeWord":"..."}`; server compares to parent's `codeWord` (case-insensitive, trimmed) and stores `codeWordMatched`. Parent UI: "no" or mismatch → calm Hindi message: "Yeh call sach nahi hai. Phone kaat dein. Priya ko bata diya gaya hai."
 
+## Sources (documents you can prove)
+
+### `GET /sources`
+Any circle member. Returns the sources manifest produced by `python scripts/verify_sources.py`: `{generatedAt, summary, sources:[{url, title, contentType, sha256, bytes, fetchedAt, fetched, error?, quotes:[{quote, found}]}]}`. Read from S3 `sources/manifest.json` when the `--s3` run has uploaded it, else the copy bundled into the Lambda.
+
+## Authorization
+Every handler consults `backend/common/authz/policies.cedar` (Cedar via `cedarpy`, fallback evaluator of the same file). Same-circle denials return `403 {"error":"forbidden","reason":"<@id>","message":...,"messageHi":...}`; cross-circle ids stay 404. Reasons: `covert-hidden-from-parent` (a parent never lists sos/guardian_call/neighbour/emergency tasks), `guardian-notification-only` (guardians cannot edit the parent's profile), `son-own-tasks-only`, `task-not-open`.
+
+## Quotas
+`/analyze` 1 unit; `/cases` one unit per image; `/puchho` authority 1 unit, family free; `/uploads` 60/day; `/sos` 10/day. `DAILY_QUOTA` (default 30, judge stack 200) caps the LLM units.
+
 ## Web Push
 
 ### `GET /push/public-key` → `{"publicKey":"<VAPID base64url>"}`
@@ -145,6 +156,6 @@ Push payload: `{"title":"Doosri Raay","body":"<task text>","taskId":"...","url":
 
 ### `POST /demo/seed` — **only when `DEMO_SEED_ENABLED=1`**, caller must be in the seeded circle or the circle doesn't exist yet. Creates circle "Sharma family" with parent Papa, guardian1 Priya, guardian2 Rahul, son Aman, neighbour, and returns the circleId. Cognito users are created by `scripts/seed.py` (admin API), not by this route.
 
-### `GET /demo/config` → `{"demoTimeouts":true|false,"rungTimeoutSeconds":45,"watchDeadlineSeconds":45}`.
+### `GET /demo/config` → `{demoTimeouts, watchDeadlineSeconds, rungTimeoutSeconds, confirmTimeoutSeconds, call1930TimeoutSeconds, ncrpTimeoutSeconds, mrmTimeoutSeconds, timeouts:{watch,rung,confirm,call1930,ncrp,mrm}, demoSeedEnabled, resetEnabled}`. Demo values: watch 45, rung 45, confirm 900, call1930 90, ncrp 120, mrm 120.
 
 ### `POST /demo/reset` — guardians only; available when `DEMO_SEED_ENABLED=1` or `DEMO_TIMEOUTS=1` (else 404). Stops the parent's running Watch and Ladder executions, closes every open task in the circle, sets `ladderState=ok`, deletes today's CHECKIN so the tile can re-arm. `200 {"ok":true,"stopped":[...],"closedTasks":n,"checkinCleared":bool}`.

@@ -16,8 +16,8 @@ Amplify Hosting; Bedrock is reached through global inference profiles. Submissio
 - **Live demo:** `<AMPLIFY_URL>/try` — opens a seeded judge circle with the parent tile on the left and the
   guardian dashboard on the right, **no account needed**. The judge stack runs 45-second timers, so a missed
   check-in escalates while you watch. Press **Reset demo** first if a previous judge left a ladder running.
-  Each judge circle has its own daily LLM quota. (The `/try` route is being added to the frontend at the time
-  of writing; until it lands, use `/demo` with the judge accounts below.)
+  Each judge circle has its own daily LLM quota. If `/try` ever shows "not configured", use `/demo` with the
+  judge accounts below.
 - **Video (3:00, unlisted):** `<YOUTUBE_URL>`; every AWS service's timestamp is in the table below.
 - **Judge accounts** for the full sign-in path (`/demo`): `papa@…` (parent), `priya@…` (guardian 1),
   `rahul@…` (guardian 2), `aman@…` (son) at `demo.doosriraay.in`; the password is in the submission form,
@@ -167,9 +167,9 @@ itself visible in the console. Contracts: `docs/API.md`, `docs/DATA_MODEL.md`, `
 
 | Technique | Where it is in this repo | Status |
 |---|---|---|
-| **Rules as data** | `backend/recovery_agent/rules_data.json`: e-Zero FIR thresholds per state, MRM eligibility, NCRP constraints, each with operator/value, a bilingual label, `source {outlet, date, url}`, the quoted sentence and a caveat; `rules.py` loads it, nothing legal lives in Python. The classifier's 12-pretext catalogue (red flags, tactics, few-shot examples, the advisory sentence with its source) is `backend/classify_worker/patterns.json` in the same shape. | both data files landed; the classifier prompt still has its examples inline, wiring it to `patterns.json` is planned |
-| **Documents you can prove** | `python scripts/verify_sources.py` downloads every cited official source, SHA-256s it, checks every quoted sentence against the live page, and writes `docs/sources-manifest.json` (plus a copy bundled into the Lambda for `GET /sources`); `--s3` uploads the bytes under `sources/<sha256>`. The guardian's `/sources` panel shows the same hashes beside the facts. | script and `GET /sources` route landed; manifest file and frontend panel planned |
-| **Authorization as policy** | `backend/common/authz/policies.cedar`: which role may complete which task kind, open or read a case, upload a photo or reset the demo, evaluated in the API Lambda with the caller's role and circle as the principal. Today the same checks are enforced in the handlers (`circleId` only from the caller's profile, 404 on mismatch, `assigneeSub == caller` on task completion). | planned; handler checks are built and tested |
+| **Rules as data** | `backend/recovery_agent/rules_data.json`: e-Zero FIR thresholds per state, MRM eligibility, NCRP constraints, each with operator/value, a bilingual label, `source {outlet, date, url}`, the quoted sentence and a caveat; `rules.py` loads it, nothing legal lives in Python. The classifier's 12-pretext catalogue (red flags, tactics, few-shot examples, the advisory sentence with its source) is `backend/classify_worker/patterns.json` in the same shape. | built: `rules.py` and the classifier both load the JSON at import; a test fails if a threshold or outlet literal appears in Python |
+| **Documents you can prove** | `python scripts/verify_sources.py` downloads every cited official source, SHA-256s it, checks every quoted sentence against the live page, and writes `docs/sources-manifest.json` (plus a copy bundled into the Lambda for `GET /sources`); `--s3` uploads the bytes under `sources/<sha256>`. The guardian's `/sources` panel shows the same hashes beside the facts. | built: `docs/sources-manifest.json` was generated on 20 Sep 2026 (12 of 13 sources fetched, 25 of 25 quotes found; WEF returns 403 to scripts and is recorded as unfetched); the panel is on `/guardian`, the case page and `/try` |
+| **Authorization as policy** | `backend/common/authz/policies.cedar`: which role may complete which task kind, open or read a case, upload a photo or reset the demo, evaluated in the API Lambda (`cedarpy`, the Rust engine) with the caller's role and circle as the principal; `forbid` rules carry `@id`s (`covert-hidden-from-parent`, `guardian-notification-only`) that become bilingual 403 messages. Cross-circle ids still return 404 so ids cannot be probed. | built: 16-row policy table in `tests/test_authz.py`, run against the engine and a fallback evaluator of the same file |
 | **A constrained, checked model** | Three states, never "safe" (a test fails the build if the word appears in UI strings); one Converse call with `toolChoice` pinned to the tool schema; enum, length and character-set checks in code; untrusted-input wrapping; the NCRP narrative re-checked for foreign UTRs and amounts and replaced by a template if it fails. | built |
 | **The whole stack locally** | `docker-compose.yml` (LocalStack community: S3 + DynamoDB), `make local-up / local-bootstrap / local-api / local-down` (`sam local start-api` on the compose network, `infra/local-env.json`). Bedrock, Polly and Step Functions have no community emulation, so `LOCAL_STUB_SFN=1` records a state-machine start instead of calling it; timers and the model need the cloud stack. Details and known gaps: `infra/README.md`. | built, with the gaps stated |
 
@@ -192,7 +192,7 @@ Timestamps follow `docs/DEMO.md`. "Tour" is shot 7 (2:05–2:29, 2 s per service
 | ECR | `recovery-agent` image built by `sam build` (linux/amd64, attestations off) | — | 2:17 |
 | AWS Budgets | `Budget20` / `Budget50` monthly ACTUAL-cost alarms, created only with `BudgetEmail` | — | 2:25 (if set) |
 | CloudWatch Logs | A 14-day group per function and per state machine, plus the HTTP API access log | — | 2:21 |
-| X-Ray | `Tracing: Active` on every function (Globals); downstream segments need `aws-xray-sdk`, not yet in `backend/requirements.txt` | — | — |
+| X-Ray | `Tracing: Active` on every function (Globals); `aws-xray-sdk` patches boto3 when the daemon address is present, so DynamoDB, S3, Bedrock and Step Functions calls appear as segments | — | 2:23 |
 
 Nine services do product work (the first nine rows); five are operations. Feedback on each is in
 `docs/SUBMISSION.md`.
@@ -268,8 +268,8 @@ make set-vapid VAPID_PRIVATE_KEY=...   # SSM SecureString for Web Push
   trusted-contact model; Latulipe, CHI 2022/2025 on helpers who hold credentials).
 - **Consent pact.** At onboarding the parent is asked a forced yes/no to the family pact (`pactAccepted` on the
   profile) naming who gets called and in what order; the printable card is `docs/PACT_CARD.html`. The pact is
-  recorded, not yet enforced server-side, and cannot yet be revoked from inside the app; holiday mode is a
-  toggle on `/settings`.
+  recorded on the profile and the parent tile redirects to the pact step until it is accepted; it cannot yet be
+  revoked from inside the app; holiday mode is a toggle on `/settings`.
 - **Data retention.** Screenshots expire from S3 after 7 days; reports, tasks and SOS items carry DynamoDB TTLs;
   no audio is ever captured; state-machine logs exclude execution data. Every read handler compares the item's
   `circleId` with the caller's and returns 404 on mismatch.
@@ -328,8 +328,8 @@ placeholder and this README claims no accuracy. Why three states rather than two
 - **Hotspot map, SES e-mail, SMS.** Seeded data that maps to no gap; SES sandbox; SNS SMS needs DLT in India.
 - **Background push is best-effort.** If Web Push does not deliver on the recording machine, the guardian view
   is in the foreground and the video says so.
-- **Not built (yet):** in-app pact revocation and server-side pact enforcement, a check-in history view, a
-  Chakshu step, the X-Ray SDK patching, and the items marked "planned" in the five-techniques table.
+- **Not built (yet):** in-app pact revocation, a check-in history view, a Chakshu step, and a guardian-side
+  edit of the parent's settings (by design: guardians are notification-only).
 
 ## Team
 
