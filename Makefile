@@ -2,7 +2,7 @@
 # Run from Git Bash on Windows (GNU make + sh) or any POSIX shell. No bashisms beyond `&&` / `||`.
 #
 #   make validate        lint the SAM template and the Step Functions definitions (no AWS calls)
-#   make build           sam build --use-container (BUILDX_NO_DEFAULT_ATTESTATIONS=1, single-manifest image)
+#   make build           sam build --use-container --cached --parallel (BUILDX_NO_DEFAULT_ATTESTATIONS=1)
 #   make deploy          build + sam deploy; extra params: make deploy PARAMS="AppOrigins=... BudgetEmail=..."
 #   make deploy-guided   first-time interactive deploy that writes samconfig.toml
 #   make outputs         print the stack outputs as a table
@@ -48,13 +48,16 @@ validate:
 build deploy deploy-guided image-check: export BUILDX_NO_DEFAULT_ATTESTATIONS = 1
 
 build:
-	$(SAM) build --use-container --template $(TEMPLATE)
+	$(SAM) build --use-container --cached --parallel --template $(TEMPLATE)
 
+# No --template on `sam deploy`: SAM must read .aws-sam/build/template.yaml (the built copy carries
+# the packaged CodeUri / ImageUri for RecoveryAgentFunction) and write samconfig.toml at the repo
+# root. Passing the source template here makes `sam deploy` fail with a missing ImageUri.
 deploy: build
 	$(SAM) deploy --no-fail-on-empty-changeset --region $(REGION) $(if $(PARAMS),--parameter-overrides $(PARAMS),)
 
 deploy-guided: build
-	$(SAM) deploy --guided --template $(TEMPLATE) --region $(REGION)
+	$(SAM) deploy --guided --region $(REGION)
 
 outputs:
 	$(SAM) list stack-outputs --stack-name $(STACK) --region $(REGION) --output table
