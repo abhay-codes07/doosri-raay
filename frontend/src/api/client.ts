@@ -32,7 +32,7 @@ import type {
 } from './types';
 import { ACCEPTED_IMAGE_TYPES } from '../lib/validate';
 
-export const API_URL: string = (import.meta.env.VITE_API_URL ?? '').replace(/\/+$/, '');
+export const API_URL: string = (import.meta.env.VITE_API_URL ?? '').trim().replace(/\/+$/, '');
 
 export class ApiError extends Error {
   readonly status: number;
