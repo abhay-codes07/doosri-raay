@@ -9,7 +9,7 @@ import thoughts from '../data/thoughts.json';
 import { useProfile } from '../hooks/useProfile';
 import { Bi, LangProvider, useT } from '../i18n/LangContext';
 import { dayOfYearIST, formatDateEn, formatDateHi, istDateString } from '../lib/dates';
-import { retryInBackground, sosLocation, startPositionWatch } from '../lib/geo';
+import { geoPermissionState, retryInBackground, sosLocation, startPositionWatch } from '../lib/geo';
 import { moonEmoji, tithiForIstDay, vikramSamvat } from '../lib/panchang';
 import { normalizeMedicines } from '../lib/medicines';
 import { KEYS, readJson, readString, writeJson, writeString } from '../lib/storage';
@@ -77,9 +77,19 @@ function ParentTile({ embedded, onSignOut }: { embedded: boolean; onSignOut?: ()
   // ---- covert SOS: triple tap on the date ----
   // Permission was asked during onboarding; here we only keep a background watch so the SOS can
   // go out at once with the last known fix. Nothing on screen changes except a 200 ms flicker.
+  // Never prompt from the tile: only keep a watch when the browser already granted permission
+  // (seeded demo parents never onboarded, and a prompt on camera would give the SOS away).
   useEffect(() => {
     if (!profile || profile.role !== 'parent') return undefined;
-    return startPositionWatch();
+    let stop: (() => void) | undefined;
+    let cancelled = false;
+    void geoPermissionState().then((state) => {
+      if (!cancelled && state === 'granted') stop = startPositionWatch();
+    });
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
   }, [profile]);
   const taps = useRef<number[]>([]);
   const [flick, setFlick] = useState(false);
