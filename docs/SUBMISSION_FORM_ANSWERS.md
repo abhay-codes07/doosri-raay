@@ -86,7 +86,7 @@ Make the repository PUBLIC before submitting (Settings > General > Danger zone >
 
 ### Deployed link to project
 
-<AMPLIFY_URL>/try
+https://main.d2inambt66a14p.amplifyapp.com/try
 
 No sign-up needed: /try signs the judge into a seeded judge circle (parent tile on the left, guardian dashboard on the right) with a judge FAQ, live timers and a Reset button. Two more judge circles exist (judge2@ and judge3@demo.doosriraay.in) so judges never collide. Judge password: <JUDGE_PASSWORD> (only for the optional full sign-in experience at /signin).
 
@@ -236,7 +236,7 @@ Rajat Nagda: frontend, deployment, demo.
 
 Before you paste:
 - Make the GitHub repo public.
-- Fill every <PLACEHOLDER>: usernames, LinkedIn, resumes, Amplify URL, YouTube link, judge password, blog links.
+- Fill every <PLACEHOLDER>: usernames, LinkedIn, resumes, YouTube link, judge password, blog links. The live URL is already filled.
 - Check the two contribution answers against what each of you actually did; the split above follows the roles in docs/SUBMISSION.md.
 - The form can be edited until the deadline (the countdown on the submit page is authoritative), so submit early and refine.
 - Team members must be student-verified on AWS Builder Center or the entry is not scored.
