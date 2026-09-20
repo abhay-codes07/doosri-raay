@@ -1,0 +1,29 @@
+# Doosri Raay - local emulation of the two data services the API needs (infra/README.md -> "Run it locally").
+#
+#   make local-up          docker compose up -d --wait
+#   make local-bootstrap   creates the table + bucket (scripts/localstack_bootstrap.py)
+#   make local-api         sam build + sam local start-api on the compose network (doosriraay_default)
+#   make local-down        docker compose down -v
+#
+# Only S3 and DynamoDB are emulated. LocalStack community has no Bedrock, Polly or Step Functions,
+# so /analyze, /puchho, the Watch/Ladder/Recovery routes and the recovery agent need the cloud (or
+# LOCAL_STUB_SFN=1 in the API, see infra/local-env.json). Persistence is off on purpose: every
+# `make local-up` starts from an empty table and bucket, and `make local-bootstrap` recreates them.
+name: doosriraay
+
+services:
+  localstack:
+    image: localstack/localstack:4
+    container_name: doosriraay-localstack
+    ports:
+      - "127.0.0.1:4566:4566"
+    environment:
+      SERVICES: s3,dynamodb
+      EAGER_SERVICE_LOADING: "1"
+      PERSISTENCE: "0"
+      DEBUG: "0"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 24

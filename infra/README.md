@@ -21,6 +21,7 @@ The template uses only long-form intrinsics (`Fn::Sub`, `Ref`, `Fn::GetAtt`) so 
 - AWS CLI v2 configured (`aws configure`) with a user/role that can create IAM roles.
 - AWS SAM CLI >= 1.100 (`pip install aws-sam-cli` or the installer).
 - Docker Desktop running (`sam build --use-container` builds the Python functions in the x86_64 Lambda build image; the recovery agent is a container image).
+- For the local path only: Docker Compose v2 (`docker compose`), included in Docker Desktop.
 - Node 20 (`frontend/`), Python 3.10+ (`scripts/`, `eval/`, tests), GNU make (Git Bash on Windows works).
 
 ## First deploy checklist
@@ -129,6 +130,36 @@ make teardown            # sam delete --stack-name doosriraay --no-prompts
 ```
 
 Before that, empty the upload bucket if you want the bucket itself gone (`aws s3 rm s3://<UploadBucket> --recursive`); CloudFormation refuses to delete a non-empty bucket. The SAM-managed artifact bucket and the ECR repository are deleted by `sam delete` as well. If you overwrote the VAPID SSM parameter as a SecureString, `sam delete` still removes it (same name). Delete the Amplify app from its console.
+
+## Run it locally (LocalStack + sam local)
+
+What runs on a laptop with no AWS account: the `ApiFunction` in a Lambda container (`sam local start-api`) against **LocalStack community** emulating **S3 and DynamoDB only** (`docker-compose.yml` at the repo root, port 4566, persistence off). That covers the data routes: `/profile`, `/circles`, `/circles/join`, `/uploads` (presigned POST to the local bucket), `GET /tasks`, `GET /sources`, `/push/public-key`, `/push/subscribe`, `GET /demo/config`.
+
+What does **not** run locally, honestly: LocalStack community has **no Bedrock, no Polly and no Step Functions**. So `/analyze` (Bedrock via the classify worker), `/puchho` (Bedrock + Polly), `/cases` (Recovery state machine), `/checkin` and `/sos` (Watch / Ladder state machines) and the recovery agent need the deployed stack, or the API's stub switch `LOCAL_STUB_SFN=1` (set in `infra/local-env.json`): with it the API is expected to record the state-machine start on the item instead of calling `states:StartExecution`, so the routes answer 200 and the UI can be exercised, but no rung, timer or 1930 task ever fires. Use the cloud stack (`make deploy`) for anything that involves timers or the model.
+
+```bash
+make local-up          # docker compose up -d --wait   (LocalStack on 127.0.0.1:4566, network doosriraay_default)
+make local-bootstrap   # python scripts/localstack_bootstrap.py  -> table doosriraay-local, bucket doosriraay-local
+make local-api         # sam build --use-container, then sam local start-api on http://127.0.0.1:3000
+make local-down        # docker compose down -v
+```
+
+Then point the frontend at it: `VITE_API_URL=http://127.0.0.1:3000` in `frontend/.env.local` and `cd frontend && npm run dev`.
+
+How the pieces fit:
+
+- `docker-compose.yml` names the project `doosriraay`, so Compose creates the network **`doosriraay_default`**. `make local-api` passes `--docker-network doosriraay_default`, which puts every Lambda container on that network, where the service name `localstack` resolves. That is why `infra/local-env.json` uses **`AWS_ENDPOINT_URL=http://localstack:4566`**. This works the same on Docker Desktop (Windows / macOS) and on Linux. Linux alternative: `make local-api LOCAL_NETWORK=host` with `AWS_ENDPOINT_URL=http://localhost:4566` in the env file (`--docker-network host` is a no-op on Docker Desktop, where the Lambda container cannot see the host's localhost).
+- `infra/local-env.json` is the `sam local --env-vars` file: one block per function logical id. SAM only overrides variables the template already declares, so `template.yaml` declares `AWS_ENDPOINT_URL: ""` on every function and `LOCAL_STUB_SFN: "0"` on `ApiFunction`; empty / `0` is a no-op in the cloud (botocore and `common/config.py` both ignore an empty endpoint). The file sets `TABLE_NAME=doosriraay-local`, `UPLOAD_BUCKET=doosriraay-local`, `DEMO_TIMEOUTS=1`, `MODEL_ID` / `FALLBACK_MODEL_ID` / `BEDROCK_REGION`, placeholder state-machine ARNs and `LOCAL_STUB_SFN=1`.
+- `make local-bootstrap` runs from the host, so it gets `AWS_ENDPOINT_URL=http://localhost:4566`, `AWS_ACCESS_KEY_ID=test`, `AWS_SECRET_ACCESS_KEY=test`, `AWS_DEFAULT_REGION` and the same `TABLE_NAME` / `UPLOAD_BUCKET`.
+- `make local-api` does not pass `--template` (same rule as `make deploy`): `sam local` must read `.aws-sam/build/template.yaml`, where the Python dependencies are vendored; the source tree has none.
+- The Lambda containers get the dummy credentials SAM injects (`AWS_ACCESS_KEY_ID` etc.); LocalStack accepts anything.
+
+Known gaps of the local path:
+
+- **No JWT authorizer.** `sam local start-api` does not emulate the HTTP API JWT authorizer, so `requestContext.authorizer.jwt.claims` is absent. The API needs a local fallback for the caller identity: when `AWS_SAM_LOCAL=true` (SAM sets it in every container) the backend should take `sub` / `email` from the unverified bearer token, or from a fixed dev subject, instead of returning 401. Sign-in itself still needs the Cognito pool of a deployed stack.
+- **Presigned S3 URLs** point at `http://localstack:4566`, which the browser cannot resolve. Add `127.0.0.1 localstack` to your hosts file, or let the API rewrite the host for local mode. The S3 client must also use path-style addressing when `AWS_ENDPOINT_URL` is set (virtual-hosted style would produce `doosriraay-local.localstack`).
+- `/analyze` invokes the classify worker through `lambda:Invoke`, which LocalStack is not running here; the report stays `pending` locally.
+- Persistence is off on purpose. `make local-down` (or a restart) wipes the table and bucket; rerun `make local-bootstrap`.
 
 ## Validation without AWS
 

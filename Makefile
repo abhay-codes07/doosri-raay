@@ -10,6 +10,10 @@
 #   make seed            python scripts/seed.py with --user-pool-id/--client-id/--api-url/--region from the outputs
 #   make image-check     docker build the recovery-agent image for linux/amd64 and verify Lambda will accept it
 #   make set-vapid       VAPID_PRIVATE_KEY=... overwrite the SSM placeholder as a SecureString
+#   make local-up        docker compose up -d --wait (LocalStack: S3 + DynamoDB on 127.0.0.1:4566)
+#   make local-bootstrap python scripts/localstack_bootstrap.py (creates the local table + bucket)
+#   make local-api       sam build + sam local start-api with infra/local-env.json on the compose network
+#   make local-down      docker compose down -v
 #   make eval / test / frontend-dev / frontend-build / teardown / logs-api
 
 SAM      ?= sam
@@ -28,14 +32,25 @@ PARAMS   ?=
 SEED_ARGS ?=
 # Local tag used by `make image-check` (sam build tags its own copy of the same Dockerfile).
 IMAGE_TAG ?= doosriraay-recovery-agent:check
+# --- local mode (infra/README.md -> "Run it locally") -----------------------------------------
+COMPOSE       ?= $(DOCKER) compose
+# Docker network the Lambda containers join so `http://localstack:4566` (infra/local-env.json)
+# resolves. `doosriraay_default` is what docker-compose.yml (name: doosriraay) creates and works
+# on Docker Desktop and Linux alike. On Linux you may instead use LOCAL_NETWORK=host together with
+# AWS_ENDPOINT_URL=http://localhost:4566 in the env file.
+LOCAL_NETWORK ?= doosriraay_default
+LOCAL_ENV     ?= infra/local-env.json
+LOCAL_PORT    ?= 3000
+# Host-side endpoint for scripts that talk to LocalStack from this machine (not from a container).
+LOCAL_ENDPOINT ?= http://localhost:4566
 
 # Stack outputs as eval-able KEY='VALUE' lines (infra/outputs.py wraps `sam list stack-outputs --output json`).
 OUTPUTS   = $(PYTHON) infra/outputs.py --stack-name $(STACK) --region $(REGION) --sam "$(SAM)"
 
-.PHONY: help validate build deploy deploy-guided outputs env seed image-check set-vapid eval test frontend-dev frontend-build teardown logs-api
+.PHONY: help validate build deploy deploy-guided outputs env seed image-check set-vapid local-up local-bootstrap local-api local-down eval test frontend-dev frontend-build teardown logs-api
 
 help:
-	@echo "Targets: validate build deploy deploy-guided outputs env seed image-check set-vapid eval test frontend-dev frontend-build teardown logs-api"
+	@echo "Targets: validate build deploy deploy-guided outputs env seed image-check set-vapid local-up local-bootstrap local-api local-down eval test frontend-dev frontend-build teardown logs-api"
 
 # --- infrastructure ---------------------------------------------------------------------------
 
@@ -45,7 +60,7 @@ validate:
 
 # BuildKit attaches provenance/SBOM attestations by default, which turns the pushed recovery-agent
 # image into a multi-manifest OCI index that Lambda rejects. Disable them for every image build.
-build deploy deploy-guided image-check: export BUILDX_NO_DEFAULT_ATTESTATIONS = 1
+build deploy deploy-guided image-check local-api: export BUILDX_NO_DEFAULT_ATTESTATIONS = 1
 
 build:
 	$(SAM) build --use-container --cached --parallel --template $(TEMPLATE)
@@ -83,6 +98,27 @@ teardown:
 
 logs-api:
 	$(SAM) logs --stack-name $(STACK) --region $(REGION) --name ApiFunction --tail
+
+# --- local mode: LocalStack (S3 + DynamoDB) + sam local start-api -----------------------------
+# Bedrock, Polly and Step Functions are not in LocalStack community, so this covers the API,
+# DynamoDB and S3 routes only; see infra/README.md -> "Run it locally" for what works.
+
+local-up:
+	$(COMPOSE) up -d --wait
+
+# The bootstrap script talks to LocalStack from the host, so it gets the host-side endpoint and the
+# dummy credentials LocalStack accepts; the names match infra/local-env.json.
+local-bootstrap:
+	AWS_ENDPOINT_URL=$(LOCAL_ENDPOINT) AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_DEFAULT_REGION=$(REGION) 	  TABLE_NAME=doosriraay-local UPLOAD_BUCKET=doosriraay-local $(PYTHON) scripts/localstack_bootstrap.py
+
+# No --template here either: sam local must read .aws-sam/build/template.yaml (built deps), not the
+# source tree. --env-vars can only override variables the template declares (AWS_ENDPOINT_URL and
+# LOCAL_STUB_SFN are declared empty / "0" for exactly this reason).
+local-api: build
+	$(SAM) local start-api --env-vars $(LOCAL_ENV) --docker-network $(LOCAL_NETWORK) --port $(LOCAL_PORT) --warm-containers EAGER --region $(REGION)
+
+local-down:
+	$(COMPOSE) down -v
 
 # --- data / evaluation / tests ----------------------------------------------------------------
 

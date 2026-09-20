@@ -377,6 +377,11 @@ Resources:
             Ref: PollyVoiceId
           USER_POOL_ID:
             Ref: UserPool
+          # Local mode only (infra/README.md -> "Run it locally"). `sam local --env-vars` can only
+          # override variables the template declares, so these exist here with no-op values:
+          # botocore and common/config.py both ignore an empty AWS_ENDPOINT_URL.
+          AWS_ENDPOINT_URL: ""
+          LOCAL_STUB_SFN: "0"
       Policies:
         - DynamoDBCrudPolicy:
             TableName:
@@ -653,6 +658,7 @@ Resources:
           # Same cap as the API so /analyze and the worker agree when the parameter is overridden.
           UPLOAD_MAX_BYTES:
             Ref: UploadMaxBytes
+          AWS_ENDPOINT_URL: ""   # local mode only, see ApiFunction
       Policies:
         - DynamoDBCrudPolicy:
             TableName:
@@ -700,6 +706,7 @@ Resources:
             Ref: VapidSubject
           DEMO_TIMEOUTS:
             Ref: DemoTimeouts
+          AWS_ENDPOINT_URL: ""   # local mode only, see ApiFunction
       Policies:
         - DynamoDBCrudPolicy:
             TableName:
@@ -734,6 +741,7 @@ Resources:
         Variables:
           TABLE_NAME:
             Ref: Table
+          AWS_ENDPOINT_URL: ""   # local mode only, see ApiFunction
       Policies:
         - DynamoDBReadPolicy:
             TableName:
@@ -751,6 +759,7 @@ Resources:
         Variables:
           TABLE_NAME:
             Ref: Table
+          AWS_ENDPOINT_URL: ""   # local mode only, see ApiFunction
       Policies:
         - DynamoDBCrudPolicy:
             TableName:
@@ -780,6 +789,7 @@ Resources:
             Ref: ModelId
           FALLBACK_MODEL_ID:
             Ref: FallbackModelId
+          AWS_ENDPOINT_URL: ""   # local mode only, see ApiFunction
       Policies:
         - DynamoDBCrudPolicy:
             TableName:

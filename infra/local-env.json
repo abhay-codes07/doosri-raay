@@ -1,0 +1,63 @@
+{
+  "ApiFunction": {
+    "AWS_ENDPOINT_URL": "http://localstack:4566",
+    "TABLE_NAME": "doosriraay-local",
+    "UPLOAD_BUCKET": "doosriraay-local",
+    "APP_ORIGINS": "http://localhost:5173,http://localhost:4173",
+    "APP_ORIGIN": "http://localhost:5173",
+    "BEDROCK_REGION": "ap-south-1",
+    "MODEL_ID": "global.anthropic.claude-sonnet-4-6",
+    "FALLBACK_MODEL_ID": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
+    "WATCH_SM_ARN": "arn:aws:states:ap-south-1:000000000000:stateMachine:doosriraay-local-watch",
+    "LADDER_SM_ARN": "arn:aws:states:ap-south-1:000000000000:stateMachine:doosriraay-local-ladder",
+    "RECOVERY_SM_ARN": "arn:aws:states:ap-south-1:000000000000:stateMachine:doosriraay-local-recovery",
+    "CLASSIFY_FUNCTION_NAME": "ClassifyWorkerFunction",
+    "DEMO_TIMEOUTS": "1",
+    "DEMO_SEED_ENABLED": "0",
+    "UPLOAD_MAX_BYTES": "3500000",
+    "DAILY_QUOTA": "30",
+    "CHECKIN_DEADLINE_HOUR_DEFAULT": "11",
+    "VAPID_PUBLIC_KEY": "",
+    "VAPID_PRIVATE_KEY_PARAM": "/doosriraay/local/vapid-private-key",
+    "VAPID_SUBJECT": "mailto:team@example.com",
+    "POLLY_VOICE_ID": "Kajal",
+    "USER_POOL_ID": "local",
+    "LOCAL_STUB_SFN": "1"
+  },
+  "ClassifyWorkerFunction": {
+    "AWS_ENDPOINT_URL": "http://localstack:4566",
+    "TABLE_NAME": "doosriraay-local",
+    "UPLOAD_BUCKET": "doosriraay-local",
+    "BEDROCK_REGION": "ap-south-1",
+    "MODEL_ID": "global.anthropic.claude-sonnet-4-6",
+    "FALLBACK_MODEL_ID": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
+    "UPLOAD_MAX_BYTES": "3500000"
+  },
+  "LadderTaskFunction": {
+    "AWS_ENDPOINT_URL": "http://localstack:4566",
+    "TABLE_NAME": "doosriraay-local",
+    "UPLOAD_BUCKET": "doosriraay-local",
+    "VAPID_PUBLIC_KEY": "",
+    "VAPID_PRIVATE_KEY_PARAM": "/doosriraay/local/vapid-private-key",
+    "VAPID_SUBJECT": "mailto:team@example.com",
+    "DEMO_TIMEOUTS": "1"
+  },
+  "WatchCheckFunction": {
+    "AWS_ENDPOINT_URL": "http://localstack:4566",
+    "TABLE_NAME": "doosriraay-local",
+    "UPLOAD_BUCKET": "doosriraay-local"
+  },
+  "LadderStatusFunction": {
+    "AWS_ENDPOINT_URL": "http://localstack:4566",
+    "TABLE_NAME": "doosriraay-local",
+    "UPLOAD_BUCKET": "doosriraay-local"
+  },
+  "RecoveryAgentFunction": {
+    "AWS_ENDPOINT_URL": "http://localstack:4566",
+    "TABLE_NAME": "doosriraay-local",
+    "UPLOAD_BUCKET": "doosriraay-local",
+    "BEDROCK_REGION": "ap-south-1",
+    "MODEL_ID": "global.anthropic.claude-sonnet-4-6",
+    "FALLBACK_MODEL_ID": "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+  }
+}
