@@ -346,7 +346,13 @@ export interface DemoResetResponse {
 export interface DemoConfig {
   demoTimeouts: boolean;
   rungTimeoutSeconds?: number;
-  watchDeadlineSeconds?: number;
+  watchDeadlineSeconds?: number | null;
+  confirmSeconds?: number;
+  call1930Seconds?: number;
+  ncrpSeconds?: number;
+  mrmSeconds?: number;
+  /** Older shape of the same numbers. */
+  timeouts?: { rung?: number; confirm?: number; call1930?: number; ncrp?: number; mrm?: number };
 }
 
 export interface ApiErrorBody {

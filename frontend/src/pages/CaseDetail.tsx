@@ -1,14 +1,15 @@
 import { useCallback, useId, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useApi } from '../api/context';
-import { describeError } from '../api/client';
+import { describeError, isTaskExpired } from '../api/client';
 import type { Case, CompleteTaskBody, RuleSource, Txn } from '../api/types';
 import { TaskCard } from '../components/TaskCard';
 import { CopyButton, ErrorBox, Section, Spinner } from '../components/ui';
+import { stepForStatus, useDemoConfig, waitSeconds } from '../hooks/useDemoConfig';
 import { usePoll, useProfile } from '../hooks/useProfile';
 import { useT } from '../i18n/LangContext';
 import type { StringKey } from '../i18n/strings';
-import { datetimeLocalFromIso, isoFromDatetimeLocal } from '../lib/dates';
+import { datetimeLocalFromIso, formatDuration, isoFromDatetimeLocal } from '../lib/dates';
 import { getPreview } from '../lib/storage';
 import { REF_MAX_LEN, classifyReference, parseAmount, txnIssues, type TxnIssue } from '../lib/validate';
 
@@ -74,6 +75,8 @@ export function CaseDetailPage() {
   const profile = useProfile(true);
   const parent = profile.data?.circle?.members.find((m) => m.role === 'parent');
   const [terminal, setTerminal] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const demoConfig = useDemoConfig();
   const kase = usePoll(() => api.getCase(id), 3000, [api, id], Boolean(id) && !terminal);
   const c: Case | null = kase.data;
   const reachedEnd = c !== null && (c.status === 'filed' || c.status === 'error');
@@ -87,10 +90,17 @@ export function CaseDetailPage() {
   );
   const onComplete = useCallback(
     async (taskId: string, body: CompleteTaskBody) => {
-      await api.completeTask(taskId, body);
+      try {
+        await api.completeTask(taskId, body);
+      } catch (e) {
+        // 409 task_expired: the workflow timed this task out; reload rather than show a raw error.
+        if (!isTaskExpired(e)) throw e;
+        setNotice(t('taskExpiredNotice'));
+        window.setTimeout(() => setNotice(null), 8000);
+      }
       await Promise.all([tasks.refresh(), kase.refresh()]);
     },
-    [api, tasks, kase],
+    [api, tasks, kase, t],
   );
 
   if (!id) return <ErrorBox message={t('caseNotFound')} />;
@@ -118,19 +128,38 @@ export function CaseDetailPage() {
         {c.state ?? ''} {c.incidentDate ? `· ${c.incidentDate}` : ''} · {c.caseId}
       </p>
 
-      <ol className="stepper" aria-label="status">
-        {STEPS.map((s, i) => (
-          <li
-            key={s.id}
-            className={isError ? (i < stepIndex ? 'done' : '') : i < stepIndex ? 'done' : i === stepIndex ? 'current' : ''}
-            aria-current={i === stepIndex ? 'step' : undefined}
-          >
-            {i < stepIndex ? '✓ ' : ''}
-            {t(s.key)}
-          </li>
-        ))}
+      <ol className="stepper" aria-label="status" title={t('waitTimerHelp')}>
+        {STEPS.map((s, i) => {
+          const wait = stepForStatus(s.id);
+          const secs = wait ? waitSeconds(demoConfig, wait) : null;
+          return (
+            <li
+              key={s.id}
+              className={isError ? (i < stepIndex ? 'done' : '') : i < stepIndex ? 'done' : i === stepIndex ? 'current' : ''}
+              aria-current={i === stepIndex ? 'step' : undefined}
+            >
+              {i < stepIndex ? '✓ ' : ''}
+              {t(s.key)}
+              {secs !== null && i >= stepIndex && !isError && (
+                <span className="step-timer" aria-label={t('waitTimer', { d: formatDuration(secs, lang) })}>
+                  ⏱ {formatDuration(secs, lang)}
+                </span>
+              )}
+            </li>
+          );
+        })}
         {isError && <li className="error">{t('statusError')}</li>}
       </ol>
+      {demoConfig && stepForStatus(c.status) && (
+        <p className="small muted" style={{ margin: '-4px 0 12px' }}>
+          {t('waitTimerHelp')}
+        </p>
+      )}
+      {notice && (
+        <p className="alert" role="status">
+          {notice}
+        </p>
+      )}
 
       {isError && <ErrorBox message={c.error ?? t('caseError')} />}
 

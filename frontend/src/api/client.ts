@@ -273,6 +273,11 @@ export function createApiClient(getToken: TokenProvider = amplifyTokenProvider, 
   return client;
 }
 
+/** True for POST /tasks/{id}/complete → 409 task_expired (the workflow has moved on). */
+export function isTaskExpired(e: unknown): boolean {
+  return e instanceof ApiError && (e.code === 'task_expired' || (e.status === 409 && /expired/i.test(e.message)));
+}
+
 /** Shared default client (Amplify session). A 401 here means the session is gone: tell AuthGate. */
 export const api: ApiClient = createApiClient(amplifyTokenProvider, {
   onUnauthorized: () => window.dispatchEvent(new Event(UNAUTHORIZED_EVENT)),

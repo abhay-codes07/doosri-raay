@@ -557,6 +557,13 @@ input[type='file'] {
   border-color: var(--red);
 }
 
+.step-timer {
+  font-size: 0.85em;
+  font-weight: 500;
+  opacity: 0.85;
+  font-variant-numeric: tabular-nums;
+}
+
 .thumb {
   width: 100%;
   max-height: 320px;

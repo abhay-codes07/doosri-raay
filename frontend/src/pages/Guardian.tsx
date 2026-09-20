@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApi, useApiIdentity } from '../api/context';
+import { isTaskExpired } from '../api/client';
 import type { CaseSummary, CompleteTaskBody, LadderState, Report } from '../api/types';
 import { PushButton } from '../components/PushButton';
 import { ScreenshotCheck } from '../components/ScreenshotCheck';
@@ -44,12 +45,19 @@ export function GuardianScreen({ embedded = false }: { embedded?: boolean }) {
   const tasks = usePoll(() => api.listTasks(), 5000, [api]);
   const cases = usePoll(() => api.listCases(), 15000, [api]);
 
+  const [notice, setNotice] = useState<string | null>(null);
   const onComplete = useCallback(
     async (taskId: string, body: CompleteTaskBody) => {
-      await api.completeTask(taskId, body);
+      try {
+        await api.completeTask(taskId, body);
+      } catch (e) {
+        if (!isTaskExpired(e)) throw e;
+        setNotice(t('taskExpiredNotice'));
+        window.setTimeout(() => setNotice(null), 8000);
+      }
       await Promise.all([tasks.refresh(), profile.refresh()]);
     },
-    [api, tasks, profile],
+    [api, tasks, profile, t],
   );
 
   const ladderState: LadderState | undefined =
@@ -96,6 +104,11 @@ export function GuardianScreen({ embedded = false }: { embedded?: boolean }) {
 
         {/* Open tasks */}
         <Section title={t('openTasks')} aside={tasks.loading ? <Spinner /> : null}>
+          {notice && (
+            <p className="alert" role="status">
+              {notice}
+            </p>
+          )}
           {tasks.error && !tasks.data && <ErrorBox message={t('tasksError')} onRetry={() => void tasks.refresh()} />}
           {tasks.data && tasks.data.tasks.length === 0 && <Empty>{t('noTasks')}</Empty>}
           <div className="stack">

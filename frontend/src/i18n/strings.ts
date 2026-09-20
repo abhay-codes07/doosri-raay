@@ -390,6 +390,15 @@ export const S = {
   refundGuardSub: { hi: 'कोई "refund officer" पैसे माँगे तो वह भी धोखा है।', en: 'Anyone calling as a "refund officer" and asking for money is another scam.' },
   ackRecorded: { hi: 'NCRP नंबर दर्ज', en: 'NCRP number recorded' },
   taskActions: { hi: 'अगला कदम', en: 'Next step' },
+  waitTimer: { hi: 'समय-सीमा {d}', en: 'window {d}' },
+  waitTimerHelp: {
+    hi: 'हर कदम की समय-सीमा (सर्वर की demo config से)। समय पूरा होने पर केस रुक जाता है।',
+    en: 'Each waiting step\'s window (from the server demo config). When it lapses the case stops.',
+  },
+  taskExpiredNotice: {
+    hi: 'यह काम समय-सीमा के बाहर हो गया था; सूची ताज़ा कर दी गई है — अगला कदम देखें।',
+    en: 'That task had already expired; the list was refreshed — see the next step.',
+  },
   caseError: { hi: 'केस आगे नहीं बढ़ पाया।', en: 'The case could not proceed.' },
 
   // ---- demo ----

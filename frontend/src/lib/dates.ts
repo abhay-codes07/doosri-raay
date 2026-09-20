@@ -68,6 +68,14 @@ export function relativeTime(iso: string | undefined | null, lang: 'hi' | 'en' =
   return lang === 'hi' ? `${days} दिन पहले` : `${days} d ago`;
 }
 
+/** "45 s", "15 min", "24 h" / "24 घंटे", "7 d" / "7 दिन" for a workflow wait. */
+export function formatDuration(secs: number, lang: 'hi' | 'en' = 'en'): string {
+  if (secs < 60) return `${secs} s`;
+  if (secs < 3600) return `${Math.round(secs / 60)} ${lang === 'hi' ? 'मिनट' : 'min'}`;
+  if (secs < 86400) return `${Math.round(secs / 3600)} ${lang === 'hi' ? 'घंटे' : 'h'}`;
+  return `${Math.round(secs / 86400)} ${lang === 'hi' ? 'दिन' : 'd'}`;
+}
+
 /** Seconds remaining until an ISO timestamp (never negative). */
 export function secondsUntil(iso: string | undefined | null): number | null {
   if (!iso) return null;
