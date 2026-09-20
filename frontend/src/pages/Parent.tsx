@@ -40,7 +40,13 @@ function ParentTile({ embedded, onSignOut }: { embedded: boolean; onSignOut?: ()
   const guardian1 = data?.circle?.members.find((m) => m.role === 'guardian1');
   const guardianName = guardian1?.name;
 
-  const now = useMemo(() => new Date(), []);
+  // A 60 s tick keeps the date honest when the tile stays open across IST midnight and lets the
+  // check-in effect below run again for the new day.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
   const today = istDateString(now);
   const tithi = useMemo(() => tithiForIstDay(now), [now]);
   const samvat = useMemo(() => vikramSamvat(now), [now]);
@@ -72,7 +78,8 @@ function ParentTile({ embedded, onSignOut }: { embedded: boolean; onSignOut?: ()
       if (timer !== undefined) window.clearTimeout(timer);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [api, identity, profile]);
+    // `today` re-arms this effect when the IST date changes while the tile is open.
+  }, [api, identity, profile, today]);
 
   // ---- covert SOS: triple tap on the date ----
   // Permission was asked during onboarding; here we only keep a background watch so the SOS can
