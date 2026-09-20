@@ -113,3 +113,31 @@ def upload_max_bytes() -> int:
 
 POLLY_FALLBACK_VOICE_ID = "Aditi"
 UPLOAD_MAX_BYTES_DEFAULT = 3_500_000
+
+
+# --- local mode (infra/README.md "Run it locally") ---------------------------------------------
+
+def endpoint_url() -> str:
+    """``AWS_ENDPOINT_URL`` (LocalStack). Empty in the cloud: botocore then uses the real endpoints."""
+    return _env("AWS_ENDPOINT_URL").strip()
+
+
+def endpoint_url_for(service: str) -> str:
+    """Per-service override (``AWS_ENDPOINT_URL_S3`` / ``AWS_ENDPOINT_URL_DYNAMODB`` ...) else the global one."""
+    return _env("AWS_ENDPOINT_URL_%s" % service.upper().replace("-", "_")).strip() or endpoint_url()
+
+
+def local_stub_sfn() -> bool:
+    """``LOCAL_STUB_SFN=1`` (ApiFunction in local mode only): no Step Functions calls; a fake
+    execution ARN is recorded on the item so /checkin, /sos and /cases answer without timers."""
+    return _flag("LOCAL_STUB_SFN")
+
+
+def sam_local() -> bool:
+    """``AWS_SAM_LOCAL=true`` is set by ``sam local``; never true in the cloud."""
+    return _flag("AWS_SAM_LOCAL")
+
+
+def xray_enabled() -> bool:
+    """X-Ray SDK patching only where a daemon address exists (never in tests / sam local)."""
+    return bool(_env("AWS_XRAY_DAEMON_ADDRESS").strip())

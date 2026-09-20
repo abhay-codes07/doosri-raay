@@ -1,0 +1,22 @@
+# Host-side environment for the local stack (infra/README.md "Run it locally").
+# `sam local start-api` takes its per-function variables from infra/local-env.json instead;
+# this file is for the scripts you run from the host: scripts/localstack_bootstrap.py,
+# scripts/verify_sources.py --s3, and `python -m pytest` against LocalStack.
+#
+#   set -a; source scripts/local_env.example; set +a        (Git Bash / Linux / macOS)
+#
+AWS_ENDPOINT_URL=http://localhost:4566
+AWS_ACCESS_KEY_ID=test
+AWS_SECRET_ACCESS_KEY=test
+AWS_DEFAULT_REGION=ap-south-1
+AWS_REGION=ap-south-1
+TABLE_NAME=doosriraay-local
+UPLOAD_BUCKET=doosriraay-local
+APP_ORIGIN=http://localhost:5173
+APP_ORIGINS=http://localhost:5173,http://localhost:4173
+# ApiFunction only: record fake Step Functions ARNs instead of calling states:* (no timers locally)
+LOCAL_STUB_SFN=1
+# sam local sets AWS_SAM_LOCAL=true itself; with it the API reads sub/email from the UNVERIFIED
+# bearer token (or the x-dev-sub header) because sam local does not run the JWT authorizer.
+DEMO_TIMEOUTS=1
+DEMO_SEED_ENABLED=0
