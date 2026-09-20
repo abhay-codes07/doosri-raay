@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Doosri Raay — परिवार का वादा / The family pact (print card)</title>
+<style>
+  /* A5 printable family pact card. No external assets; system fonts (Devanagari falls back to the OS font). */
+  @page { size: A5; margin: 10mm; }
+  :root {
+    --ink: #1f1a17;
+    --muted: #5a524c;
+    --accent: #b5541c;
+    --paper: #fbf6ee;
+    --rule: #d8cbb8;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #e9e3d8; color: var(--ink);
+    font-family: "Noto Sans Devanagari", "Noto Sans", "Mangal", "Nirmala UI", "Segoe UI", system-ui, sans-serif; }
+  .sheet {
+    width: 148mm; min-height: 210mm; margin: 12mm auto; padding: 12mm 12mm 10mm;
+    background: var(--paper); border: 1px solid var(--rule); border-radius: 4mm;
+    display: flex; flex-direction: column; gap: 5mm;
+  }
+  header { display: flex; align-items: center; gap: 4mm; border-bottom: 2px solid var(--accent); padding-bottom: 3mm; }
+  header svg { width: 14mm; height: 14mm; flex: none; }
+  header h1 { font-size: 15pt; margin: 0; line-height: 1.2; }
+  header h1 small { display: block; font-size: 9pt; font-weight: normal; color: var(--muted); }
+  h2 { font-size: 11pt; margin: 0 0 1.5mm; color: var(--accent); letter-spacing: .02em; }
+  .pact { border: 1.5px solid var(--accent); border-radius: 3mm; padding: 4mm 5mm; }
+  .pact p { margin: 0; font-size: 12.5pt; line-height: 1.5; }
+  .pact p.en { font-size: 10.5pt; color: var(--muted); margin-top: 2mm; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+  .box { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 3mm 4mm; font-size: 9.5pt; line-height: 1.45; }
+  .box ol, .box ul { margin: 1mm 0 0; padding-left: 5mm; }
+  .box li { margin-bottom: 1mm; }
+  .line { display: flex; gap: 2mm; align-items: baseline; margin-top: 2mm; }
+  .line span { flex: none; color: var(--muted); }
+  .line i { flex: 1; border-bottom: 1px dotted var(--ink); min-height: 5mm; }
+  .sign { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; margin-top: auto; padding-top: 3mm; font-size: 9pt; color: var(--muted); }
+  .sign div { border-top: 1px solid var(--ink); padding-top: 1.5mm; }
+  footer { font-size: 7.5pt; color: var(--muted); line-height: 1.4; border-top: 1px solid var(--rule); padding-top: 2mm; }
+  .tel { font-weight: bold; color: var(--ink); }
+  @media print {
+    html, body { background: #fff; }
+    .sheet { margin: 0; border: none; border-radius: 0; width: auto; min-height: auto; padding: 0; page-break-inside: avoid; }
+    .noprint { display: none; }
+  }
+  .noprint { text-align: center; font-size: 10pt; color: var(--muted); margin: 4mm 0; }
+</style>
+</head>
+<body>
+<p class="noprint">Print this page on A5 (or A4 at 71%). दो प्रति छापें: एक रसोई के फ्रिज पर, एक फ़ोन के कवर में। / Print two: one for the fridge, one inside the phone cover.</p>
+<section class="sheet">
+  <header>
+    <svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#b5541c"/><circle cx="24" cy="30" r="9" fill="#fbf6ee"/><circle cx="42" cy="30" r="9" fill="#fbf6ee" opacity=".8"/><path d="M12 50c4-8 12-10 20-10s16 2 20 10" stroke="#fbf6ee" stroke-width="5" fill="none" stroke-linecap="round"/></svg>
+    <h1>परिवार का वादा<small>The family pact · Doosri Raay (दूसरी राय, "a second opinion")</small></h1>
+  </header>
+
+  <div class="pact">
+    <p class="hi">अगर कोई मुझसे कहे कि परिवार से बात न करूँ, या "verification" के लिए पैसे भेजूँ, तो मेरा परिवार तुरंत जान जाएगा।</p>
+    <p class="en">If anyone tells me not to talk to my family, or to send money for "verification", my family will know at once.</p>
+  </div>
+
+  <div class="two">
+    <div class="box">
+      <h2>याद रखें / Remember</h2>
+      <ul>
+        <li>कोई भी पुलिस, CBI, ED या TRAI video call पर गिरफ़्तार नहीं करती। <br><em>No police, CBI, ED or TRAI arrests anyone over a video call.</em></li>
+        <li>"किसी को मत बताना" सुनते ही परिवार को बताना है। <br><em>"Tell no one" is the moment to tell the family.</em></li>
+        <li>"verification" या "refund fee" के लिए पैसे कभी नहीं भेजने। <br><em>Never send money for "verification" or a "refund fee".</em></li>
+        <li>सुबह ऐप खोलना ही "मैं ठीक हूँ" है। <br><em>Opening the app in the morning is the "I am fine".</em></li>
+      </ul>
+    </div>
+    <div class="box">
+      <h2>कौन किसे बुलाएगा / Who calls whom</h2>
+      <ol>
+        <li>पहला अभिभावक / Guardian 1</li>
+        <li>दूसरा अभिभावक / Guardian 2</li>
+        <li>पड़ोसी, जो दरवाज़ा खटखटाएँगे / Neighbour who will knock</li>
+        <li>112 (आपातकाल / emergency)</li>
+      </ol>
+      <div class="line"><span>1.</span><i></i></div>
+      <div class="line"><span>2.</span><i></i></div>
+      <div class="line"><span>पड़ोसी / Neighbour:</span><i></i></div>
+    </div>
+  </div>
+
+  <div class="two">
+    <div class="box">
+      <h2>घर का code word / Family code word</h2>
+      <p style="margin:0">अगर कोई कहे "आपका बेटा/बेटी मुसीबत में है", तो code word पूछें। <br><em>If anyone says "your son/daughter is in trouble", ask for the code word.</em></p>
+      <div class="line"><span>Code word:</span><i></i></div>
+    </div>
+    <div class="box">
+      <h2>ज़रूरी नंबर / Numbers</h2>
+      <p style="margin:0"><span class="tel">1930</span> साइबर धोखाधड़ी हेल्पलाइन / cyber-fraud helpline<br>
+      <span class="tel">cybercrime.gov.in</span> शिकायत (NCRP) / complaint portal<br>
+      <span class="tel">112</span> आपातकाल / emergency</p>
+      <p style="margin:2mm 0 0"><em>पैसे गए हों तो पहले 1930, फिर 24 घंटे में NCRP। / If money went, call 1930 first, then file on NCRP within 24 hours.</em></p>
+    </div>
+  </div>
+
+  <div class="sign">
+    <div>हस्ताक्षर (माता-पिता) / Signed (parent) · तारीख / date</div>
+    <div>हस्ताक्षर (अभिभावक) / Signed (guardian) · तारीख / date</div>
+  </div>
+
+  <footer>
+    Doosri Raay एक परिवार का औज़ार है, सरकारी सेवा नहीं। इसमें दिखी कोई भी जानकारी 1930 या cybercrime.gov.in से पक्की करें। ·
+    Doosri Raay is a family tool, not a government service; verify anything it tells you with 1930 or cybercrime.gov.in.
+    Pact text is the same as the app's onboarding screen (<code>frontend/src/i18n/strings.ts</code>, <code>pactText</code>). MIT licence.
+  </footer>
+</section>
+</body>
+</html>
