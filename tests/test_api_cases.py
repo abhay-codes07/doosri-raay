@@ -22,7 +22,7 @@ def test_case_create_and_get(api, family):
     assert len(started) == 1
     payload = json.loads(started[0]["input"])
     assert payload == {"circleId": family["circleId"], "caseId": body["caseId"],
-                       "timeouts": {"rung": 45, "confirm": 120, "call1930": 45, "ncrp": 45, "mrm": 120}}
+                       "timeouts": {"rung": 45, "confirm": 900, "call1930": 90, "ncrp": 120, "mrm": 120}}
     status, case = api("GET", "/cases/{caseId}", family["guardian1"], path_params={"caseId": body["caseId"]})
     assert status == 200 and case["status"] == "open" and case["victimName"] == "Ramesh Kumar"
     assert case["objectKeys"] == _keys(family)

@@ -11,7 +11,7 @@ from ladder import watch_check
 
 
 def test_compute_timeouts_and_deadline():
-    assert timeouts.compute_timeouts(True) == {"rung": 45, "confirm": 120, "call1930": 45, "ncrp": 45, "mrm": 120}
+    assert timeouts.compute_timeouts(True) == {"rung": 45, "confirm": 900, "call1930": 90, "ncrp": 120, "mrm": 120}
     assert timeouts.compute_timeouts(False) == {"rung": 900, "confirm": 86400, "call1930": 900, "ncrp": 86400, "mrm": 604800}
     now = dt.datetime(2026, 9, 18, 3, 0, tzinfo=dt.timezone.utc)  # 08:30 IST
     assert timeouts.next_deadline_iso(11, demo=False, now=now) == "2026-09-18T05:30:00Z"

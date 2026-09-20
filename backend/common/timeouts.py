@@ -14,11 +14,13 @@ PROD_TIMEOUTS: Dict[str, int] = {
     "ncrp": 86400,
     "mrm": 604800,
 }
+# Demo: rungs still fire in 45 s (the hero moment), but the recovery steps a judge reads and
+# types into get room: confirm 15 min, 1930 call 90 s, NCRP 2 min, MRM 2 min.
 DEMO_TIMEOUTS: Dict[str, int] = {
     "rung": 45,
-    "confirm": 120,
-    "call1930": 45,
-    "ncrp": 45,
+    "confirm": 900,
+    "call1930": 90,
+    "ncrp": 120,
     "mrm": 120,
 }
 DEMO_WATCH_SECONDS = 45

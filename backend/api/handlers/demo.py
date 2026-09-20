@@ -64,10 +64,18 @@ def _target_circle(members: List[Dict[str, str]]) -> Any:
 
 
 def seed(caller_sub: str, members: List[Dict[str, str]]) -> Dict[str, Any]:
+    """Create (or complete) the demo circle. Rules: the caller is one of the members; when the
+    members already belong to a circle the caller must already be IN that circle (nobody joins or
+    rewrites a family from outside); a profile that already has a circle is never upserted."""
     if caller_sub not in [m["sub"] for m in members]:
         raise ApiError(403, "forbidden", "Caller must be one of the seeded members")
     circle_id = _target_circle(members)
+    caller_profile = auth.load_profile(caller_sub) or {}
+    if circle_id is not None and caller_profile.get("circleId") != circle_id:
+        raise ApiError(403, "forbidden", "Only a member of the target circle can re-seed it")
     if circle_id is None:
+        if caller_profile.get("circleId"):
+            raise ApiError(409, "already_in_circle", "You are already in a circle")
         circle_id = create_circle(CIRCLE_NAME, caller_sub)["circleId"]
     for m in members:
         existing_member = db.get_item(db.circle_pk(circle_id), db.member_sk(m["sub"]))
@@ -76,13 +84,19 @@ def seed(caller_sub: str, members: List[Dict[str, str]]) -> Dict[str, Any]:
         taken = db.member_by_role(db.circle_members(circle_id), m["role"])
         if taken and taken.get("sub") != m["sub"]:
             raise ApiError(409, "role_taken", "role %s is already taken by another member" % m["role"])
-        fields: Dict[str, Any] = {"name": m["name"], "lang": "hi"}
-        if m["phone"]:
-            fields["phone"] = m["phone"]
-        if m["role"] == "parent":
-            fields.update(PARENT_FIELDS)
-        profile = upsert_profile(m["sub"], fields)
-        member = add_member(circle_id, profile, m["role"])
+        existing_profile = auth.load_profile(m["sub"]) or {}
+        if existing_profile.get("circleId"):
+            # already a member somewhere (this circle, by the check above): keep their settings
+            member = existing_member or add_member(circle_id, existing_profile, m["role"])
+            fields = {"checkinHourIST": existing_profile.get("checkinHourIST") or PARENT_FIELDS["checkinHourIST"]}
+        else:
+            fields = {"name": m["name"], "lang": "hi"}
+            if m["phone"]:
+                fields["phone"] = m["phone"]
+            if m["role"] == "parent":
+                fields.update(PARENT_FIELDS)
+            profile = upsert_profile(m["sub"], fields)
+            member = add_member(circle_id, profile, m["role"])
         # prod only: the first Watch starts at seed time. In demo mode the first tile open arms it.
         if m["role"] == "parent" and not config.demo_timeouts() and not member.get("activeWatchArn"):
             checkin.start_watch(circle_id, m["sub"], int(fields["checkinHourIST"]), since_ts=member.get("joinedAt"))
@@ -129,11 +143,20 @@ def post_reset(req: Any) -> Dict[str, Any]:
 
 
 def get_config(req: Any) -> Dict[str, Any]:
+    """Every timer the UI may show: rung, confirm, call1930, ncrp, mrm (seconds) and the Watch
+    deadline (seconds in demo mode, else null: it is the parent's check-in hour)."""
     demo = config.demo_timeouts()
     tmo = timeouts.compute_timeouts(demo)
+    watch = timeouts.DEMO_WATCH_SECONDS if demo else None
     return ok({
         "demoTimeouts": demo,
         "rungTimeoutSeconds": tmo["rung"],
-        "watchDeadlineSeconds": timeouts.DEMO_WATCH_SECONDS if demo else None,
-        "timeouts": tmo,
+        "watchDeadlineSeconds": watch,
+        "confirmTimeoutSeconds": tmo["confirm"],
+        "call1930TimeoutSeconds": tmo["call1930"],
+        "ncrpTimeoutSeconds": tmo["ncrp"],
+        "mrmTimeoutSeconds": tmo["mrm"],
+        "timeouts": {**tmo, "watch": watch},
+        "demoSeedEnabled": config.demo_seed_enabled(),
+        "resetEnabled": bool(config.demo_seed_enabled() or demo),
     })

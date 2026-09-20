@@ -68,10 +68,10 @@ def post_puchho(req: Any) -> Dict[str, Any]:
     kind = req.body.get("kind")
     if kind not in ("authority", "family"):
         raise ApiError(400, "invalid_kind", "kind must be authority or family")
-    quota.consume_quota(req.sub)
     members = db.circle_members(circle_id)
     parent_name = profile.get("name") or "Papa"
     if kind == "authority":
+        quota.consume_quota(req.sub)  # Polly (cached after the first call); 'family' is free: it is a push, not a model call
         lang = "en" if profile.get("lang") == "en" else "hi"
         url = authority_audio_url(lang)
         info_tasks = _inform_guardians(circle_id, members, parent_name, texts.I4C_LINE_EN)

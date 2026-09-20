@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from common import auth, aws, config, db
+from common import auth, aws, config, db, quota
 from common.http import ApiError, ok
 
 EXTENSIONS = {"image/png": "png", "image/jpeg": "jpg", "image/jpg": "jpg", "image/webp": "webp", "image/gif": "gif"}
@@ -39,6 +39,7 @@ def post_upload(req: Any) -> Dict[str, Any]:
         raise ApiError(400, "invalid_content_type", "contentType must be image/*")
     if purpose not in PURPOSES:
         raise ApiError(400, "invalid_purpose", "purpose must be analyze, case or photo")
+    quota.consume_quota(req.sub, limit=quota.UPLOAD_QUOTA, bucket="uploads")
     key = object_key(circle_id, purpose, content_type)
     presigned = presign(key, content_type)
     return ok({"url": presigned["url"], "fields": presigned["fields"], "objectKey": key})
