@@ -66,26 +66,28 @@ export function DemoPage({ autoParent, faq, headerExtra }: DemoPageProps = {}) {
 
   // Judge path: sign the parent in without a form (and again whenever the pane is signed out).
   const [autoTries, setAutoTries] = useState(0);
+  const [autoError, setAutoError] = useState<string | null>(null);
+  const autoSigning = Boolean(autoParent) && !parentAuth && !autoError;
   useEffect(() => {
-    if (!autoParent || parentAuth || autoTries > 3) return undefined;
+    if (!autoParent || parentAuth || autoError) return undefined;
     let alive = true;
-    setBusy(true);
-    setError(null);
     autoParent()
       .then((r) => {
         if (alive) setParentAuth(r);
       })
       .catch((err: unknown) => {
         if (!alive) return;
-        setError(err instanceof Error ? err.message : String(err));
-        setAutoTries((n) => n + 1);
-      })
-      .finally(() => alive && setBusy(false));
+        setAutoError(err instanceof Error ? err.message : String(err));
+      });
     return () => {
       alive = false;
     };
-    // `epoch` re-runs the auto sign-in after a reset or a 401.
-  }, [autoParent, parentAuth, autoTries, epoch]);
+    // `autoTries` re-runs the auto sign-in after "retry", `epoch` after a reset or a 401.
+  }, [autoParent, parentAuth, autoError, autoTries, epoch]);
+  const retryAuto = () => {
+    setAutoError(null);
+    setAutoTries((n) => n + 1);
+  };
 
   // Refresh the parent's ID token 5 minutes before it expires; on failure fall back to the form.
   useEffect(() => {
@@ -106,7 +108,7 @@ export function DemoPage({ autoParent, faq, headerExtra }: DemoPageProps = {}) {
   const onParentUnauthorized = useCallback(() => {
     setParentAuth(null);
     setError(t('demoSessionExpired'));
-    setAutoTries(0);
+    setAutoError(null);
   }, [t]);
 
   /** POST /demo/reset as the guardian (the Amplify session), then clear this browser's state for both identities. */
@@ -170,16 +172,14 @@ export function DemoPage({ autoParent, faq, headerExtra }: DemoPageProps = {}) {
             {!parentAuth ? (
               autoParent ? (
                 <div className="card">
-                  {busy ? (
+                  {autoSigning ? (
                     <Spinner label={t('demoSigningIn')} />
                   ) : (
                     <>
-                      {error && (
-                        <p className="alert alert-error" role="alert">
-                          {error}
-                        </p>
-                      )}
-                      <button type="button" className="btn btn-primary btn-big btn-block" onClick={() => setAutoTries(0)}>
+                      <p className="alert alert-error" role="alert">
+                        {autoError ?? error}
+                      </p>
+                      <button type="button" className="btn btn-primary btn-big btn-block" onClick={retryAuto}>
                         {t('retry')}
                       </button>
                     </>
