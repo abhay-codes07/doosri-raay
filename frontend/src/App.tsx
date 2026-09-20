@@ -1,15 +1,15 @@
-import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from 'react';
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import { ApiIdentityProvider } from './api/context';
+import { lazy, Suspense, type ReactNode } from 'react';
+import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { isConfigured } from './amplify';
+import { AppShell } from './AppShell';
 import { AuthGate, type AuthedUser } from './auth/AuthGate';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Layout } from './components/Layout';
 import { Spinner } from './components/ui';
-import { LangProvider, useT } from './i18n/LangContext';
-import { S, type Lang } from './i18n/strings';
-import { readString, writeString } from './lib/storage';
-import { SessionProvider, useSession } from './session';
+import { useT } from './i18n/LangContext';
+import { S } from './i18n/strings';
+import { judgeConfigured } from './lib/judge';
+import { useSession } from './session';
 
 // Route-level code splitting: each page (and the demo, which bundles both faces) is its own chunk.
 const HomePage = lazy(() => import('./pages/Home').then((m) => ({ default: m.HomePage })));
@@ -20,13 +20,7 @@ const CaseNewPage = lazy(() => import('./pages/CaseNew').then((m) => ({ default:
 const CaseDetailPage = lazy(() => import('./pages/CaseDetail').then((m) => ({ default: m.CaseDetailPage })));
 const SettingsPage = lazy(() => import('./pages/Settings').then((m) => ({ default: m.SettingsPage })));
 const DemoPage = lazy(() => import('./pages/Demo').then((m) => ({ default: m.DemoPage })));
-
-const LANG_KEY = 'dr:lang';
-
-function readLang(): Lang {
-  const v = readString(LANG_KEY);
-  return v === 'en' ? 'en' : 'hi';
-}
+const TryPage = lazy(() => import('./pages/Try').then((m) => ({ default: m.TryPage })));
 
 function AuthHeader() {
   return (
@@ -39,6 +33,25 @@ function AuthHeader() {
         {S.appName.en} · {S.tagline.hi}
       </p>
     </div>
+  );
+}
+
+/** Under the sign-in form: judges never need an account. */
+function JudgeLink() {
+  if (!judgeConfigured()) return null;
+  return (
+    <p className="small muted" style={{ textAlign: 'center', marginTop: 12 }}>
+      <Link to="/try" className="btn btn-quiet">
+        <span className="bi">
+          <span className="bi-hi" lang="hi">
+            {S.judgeOpenTry.hi}
+          </span>
+          <span className="bi-en" lang="en">
+            {S.judgeOpenTry.en}
+          </span>
+        </span>
+      </Link>
+    </p>
   );
 }
 
@@ -60,42 +73,44 @@ export default function App() {
   }
   return (
     <ErrorBoundary>
-      <AuthGate header={<AuthHeader />}>{(user, signOut) => <AuthedApp user={user} signOut={signOut} />}</AuthGate>
+      <BrowserRouter>
+        <Routes>
+          {/* Public judge path: signs in the shared account by itself; no gate, no sign-up. */}
+          <Route
+            path="/try"
+            element={
+              <Guarded>
+                <TryPage />
+              </Guarded>
+            }
+          />
+          <Route path="*" element={<GatedApp />} />
+        </Routes>
+      </BrowserRouter>
     </ErrorBoundary>
   );
 }
 
-function AuthedApp({ user, signOut }: { user: AuthedUser; signOut: () => void }) {
-  const sub = user.userId || 'me';
-  const email = user.email;
-  const doSignOut = useCallback(() => signOut(), [signOut]);
-  const [lang, setLangState] = useState<Lang>(readLang);
-  const setLang = useCallback((l: Lang) => {
-    setLangState(l);
-    writeString(LANG_KEY, l);
-  }, []);
-
+/** Everything behind the sign-in gate. Unauthenticated visits to "/" land on /try when a judge account is built in. */
+function GatedApp() {
+  const { pathname } = useLocation();
   return (
-    <BrowserRouter>
-      <ApiIdentityProvider identity={sub}>
-        <LangProvider lang={lang} setLang={setLang}>
-          <SessionProvider sub={sub} email={email} signOut={doSignOut}>
-            <LangFromProfile setLang={setLang} />
-            <AppRoutes />
-          </SessionProvider>
-        </LangProvider>
-      </ApiIdentityProvider>
-    </BrowserRouter>
+    <AuthGate
+      header={<AuthHeader />}
+      footer={<JudgeLink />}
+      whenOut={() => (judgeConfigured() && pathname === '/' ? <Navigate to="/try" replace /> : null)}
+    >
+      {(user, signOut) => <AuthedApp user={user} signOut={signOut} />}
+    </AuthGate>
   );
 }
 
-/** Adopt the profile's language once, unless the user already chose one on this device. */
-function LangFromProfile({ setLang }: { setLang: (l: Lang) => void }) {
-  const s = useSession();
-  useEffect(() => {
-    if (s.profile?.lang && !readString(LANG_KEY)) setLang(s.profile.lang);
-  }, [s.profile?.lang, setLang]);
-  return null;
+function AuthedApp({ user, signOut }: { user: AuthedUser; signOut: () => void }) {
+  return (
+    <AppShell user={user} signOut={signOut}>
+      <AppRoutes />
+    </AppShell>
+  );
 }
 
 function PageSpinner() {

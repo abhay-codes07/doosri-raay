@@ -405,6 +405,23 @@ export const S = {
   },
   caseError: { hi: 'केस आगे नहीं बढ़ पाया।', en: 'The case could not proceed.' },
 
+  // ---- judge path (/try) ----
+  judgeBanner: { hi: 'जज मोड: साझा डेमो खाता, कोई निजी डेटा नहीं', en: 'Judge mode: shared demo account, no personal data' },
+  judgeOpenTry: { hi: 'जज हैं? /try खोलें — बिना खाता बनाए', en: 'Judges: open /try — no account needed' },
+  judgeSigningIn: { hi: 'जज खाते में साइन इन हो रहा है…', en: 'Signing in the judge account…' },
+  judgeSignInFailed: {
+    hi: 'जज खाते में साइन इन नहीं हो पाया। submission form वाले credentials से /signin पर साइन इन करें।',
+    en: 'The judge account could not be signed in. Use the credentials from the submission form at /signin.',
+  },
+  judgeOwnAccount: { hi: 'अपने खाते से साइन इन', en: 'Sign in with your own account' },
+  judgeFullDashboard: { hi: 'पूरा dashboard', en: 'Full dashboard' },
+  judgeNotConfiguredTitle: { hi: 'इस build में जज खाता नहीं है', en: 'No judge account in this build' },
+  judgeNotConfiguredBody: {
+    hi: 'यह पेज बिना खाता बनाए डेमो खोलता है, पर इस build में जज credentials नहीं डाले गए। submission form में दिए ई-मेल/पासवर्ड से /signin पर साइन इन करें, या build के समय ये variables भरें:',
+    en: 'This page opens the demo without sign-up, but this build was made without judge credentials. Sign in at /signin with the e-mail and password from the submission form, or set these variables at build time:',
+  },
+  navTry: { hi: 'जज डेमो', en: 'Judge demo' },
+
   // ---- sources ----
   sourcesTitle: { hi: 'स्रोत सत्यापन / Sources verified', en: 'Sources verified / स्रोत सत्यापन' },
   sourcesSub: {

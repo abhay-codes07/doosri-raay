@@ -77,7 +77,19 @@ async function loadUser(): Promise<AuthedUser | null> {
  * Replaces the Amplify UI Authenticator (≈ 400 kB of JS + CSS) with plain form elements
  * styled by global.css: large type, 48 px targets.
  */
-export function AuthGate({ header, children }: { header: ReactNode; children: (user: AuthedUser, signOut: () => void) => ReactNode }) {
+export function AuthGate({
+  header,
+  footer,
+  whenOut,
+  children,
+}: {
+  header: ReactNode;
+  /** Rendered under the forms (e.g. the judges' /try link). */
+  footer?: ReactNode;
+  /** Return a node to render instead of the forms while signed out (e.g. a redirect); null keeps the forms. */
+  whenOut?: () => ReactNode | null;
+  children: (user: AuthedUser, signOut: () => void) => ReactNode;
+}) {
   const [status, setStatus] = useState<Status>({ kind: 'loading' });
   const [view, setView] = useState<View>('signIn');
   const [email, setEmail] = useState('');
@@ -239,6 +251,9 @@ export function AuthGate({ header, children }: { header: ReactNode; children: (u
 
   if (status.kind === 'in') return <>{children(status.user, doSignOut)}</>;
 
+  const override = whenOut?.();
+  if (override) return <>{override}</>;
+
   const emailField = (autoComplete: string) => (
     <div className="field">
       <label htmlFor={`${uid}-email`}>
@@ -395,6 +410,7 @@ export function AuthGate({ header, children }: { header: ReactNode; children: (u
             </div>
           </form>
         )}
+        {footer}
       </div>
     </div>
   );

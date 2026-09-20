@@ -557,6 +557,69 @@ input[type='file'] {
   border-color: var(--red);
 }
 
+/* ---------- Judge path (/try) ---------- */
+
+.judge-banner {
+  margin: 0 0 12px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  border: 1px solid var(--line);
+  font-size: 0.95em;
+  display: inline-block;
+}
+
+.judge-faq {
+  margin-bottom: 16px;
+}
+
+.judge-faq h3 {
+  font-size: 1.05em;
+  margin: 0 0 6px;
+}
+
+.judge-faq p {
+  margin: 0 0 10px;
+}
+
+.judge-faq code {
+  font-size: 0.9em;
+  background: var(--bg-soft);
+  padding: 1px 5px;
+  border-radius: 6px;
+}
+
+.judge-faq .steps {
+  padding-left: 22px;
+  margin: 0;
+}
+
+.judge-faq .steps li {
+  margin-bottom: 8px;
+}
+
+.timers {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.95em;
+}
+
+.timers th {
+  text-align: left;
+  font-weight: 500;
+  padding: 4px 8px 4px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.timers td {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
 /* ---------- Sources panel ---------- */
 
 .sources-toggle {
