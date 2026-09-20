@@ -89,11 +89,14 @@ export interface ReportRef {
   label: string;
 }
 
+/** Dashboard mount fetches every remembered report, so keep the list short. */
+export const MAX_REMEMBERED_REPORTS = 5;
+
 export function rememberReport(identity: string, ref: ReportRef): void {
   const list = readJson<ReportRef[]>(KEYS.reports(identity), []);
-  writeJson(KEYS.reports(identity), [ref, ...list.filter((r) => r.reportId !== ref.reportId)].slice(0, 20));
+  writeJson(KEYS.reports(identity), [ref, ...list.filter((r) => r.reportId !== ref.reportId)].slice(0, MAX_REMEMBERED_REPORTS));
 }
 
 export function listReports(identity: string): ReportRef[] {
-  return readJson<ReportRef[]>(KEYS.reports(identity), []);
+  return readJson<ReportRef[]>(KEYS.reports(identity), []).slice(0, MAX_REMEMBERED_REPORTS);
 }
