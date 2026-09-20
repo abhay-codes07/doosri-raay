@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
+import { ProgressBar } from './ProgressBar';
 import { useLang, useT } from '../i18n/LangContext';
 import { judgeConfigured } from '../lib/judge';
 import { useSession } from '../session';
@@ -10,6 +11,7 @@ export function Layout() {
   const session = useSession();
   return (
     <div className="page">
+      <ProgressBar />
       <header className="topbar">
         <NavLink to="/" className="brand" aria-label={t('appName')}>
           <span className="brand-mark" aria-hidden="true">

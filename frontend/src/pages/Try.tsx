@@ -5,6 +5,7 @@ import { UNAUTHORIZED_EVENT } from '../api/client';
 import { AppShell } from '../AppShell';
 import type { AuthedUser } from '../auth/AuthGate';
 import { JudgeFaq } from '../components/JudgeFaq';
+import { ProgressBar } from '../components/ProgressBar';
 import { Spinner } from '../components/ui';
 import { S } from '../i18n/strings';
 import { cognitoPasswordAuth } from '../lib/cognitoPasswordAuth';
@@ -111,6 +112,7 @@ function TryAuthed({ cfg }: { cfg: JudgeConfig }) {
   return (
     <AppShell user={state.user} signOut={doSignOut}>
       <div className="page">
+        <ProgressBar />
         <header className="topbar">
           <Link to="/" className="brand" aria-label={S.appName.en}>
             <span className="brand-mark" aria-hidden="true">

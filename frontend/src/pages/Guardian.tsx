@@ -111,7 +111,7 @@ export function GuardianScreen({ embedded = false }: { embedded?: boolean }) {
             </p>
           )}
           {tasks.error && !tasks.data && <ErrorBox message={t('tasksError')} onRetry={() => void tasks.refresh()} />}
-          {tasks.data && tasks.data.tasks.length === 0 && <Empty>{t('noTasks')}</Empty>}
+          {tasks.data && tasks.data.tasks.length === 0 && <Empty icon="🌿">{t('noTasks')}</Empty>}
           <div className="stack">
             {(tasks.data?.tasks ?? []).map((task) => (
               <TaskCard key={task.taskId} task={task} parentName={parent?.name} parentPhone={parent?.phone} onComplete={onComplete} />
@@ -129,7 +129,7 @@ export function GuardianScreen({ embedded = false }: { embedded?: boolean }) {
           }
         >
           {cases.error && !cases.data && <ErrorBox message={cases.error} onRetry={() => void cases.refresh()} />}
-          {cases.data && cases.data.cases.length === 0 && <Empty>{t('noCases')}</Empty>}
+          {cases.data && cases.data.cases.length === 0 && <Empty icon="📂">{t('noCases')}</Empty>}
           <ul className="stack" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
             {(cases.data?.cases ?? []).map((c: CaseSummary) => (
               <li key={c.caseId} className="row spread">
@@ -180,7 +180,7 @@ function RecentReports({ identity, familyName, familyPhone }: { identity: string
 
   return (
     <Section title={t('reportsTitle')}>
-      {refs.length === 0 && <Empty>{t('noReports')}</Empty>}
+      {refs.length === 0 && <Empty icon="🔍">{t('noReports')}</Empty>}
       <ul className="stack" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
         {refs.map((ref) => {
           const r = reports[ref.reportId];

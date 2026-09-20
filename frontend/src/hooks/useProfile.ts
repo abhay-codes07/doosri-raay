@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useApi } from '../api/context';
 import { describeError } from '../api/client';
 import type { ProfileResponse } from '../api/types';
+import { withActivity } from '../lib/activity';
 
 export interface ProfileState {
   data: ProfileResponse | null;
@@ -71,7 +72,7 @@ export function usePoll<T>(
 
   const refresh = useCallback(async () => {
     try {
-      const r = await fnRef.current();
+      const r = await withActivity(() => fnRef.current());
       setData(r);
       setError(null);
     } catch (e) {

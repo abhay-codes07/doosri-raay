@@ -27,8 +27,16 @@ export function ErrorBox({ message, onRetry }: { message: string; onRetry?: () =
   );
 }
 
-export function Empty({ children }: { children: ReactNode }) {
-  return <p className="muted">{children}</p>;
+/** Empty state: one emoji (no external assets) beside the sentence. */
+export function Empty({ icon = '🌿', children }: { icon?: string; children: ReactNode }) {
+  return (
+    <p className="empty">
+      <span className="empty-icon" aria-hidden="true">
+        {icon}
+      </span>
+      <span>{children}</span>
+    </p>
+  );
 }
 
 export function CopyButton({ text, label }: { text: string; label?: string }) {
