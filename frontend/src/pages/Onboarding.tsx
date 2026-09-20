@@ -22,8 +22,10 @@ export function OnboardingPage() {
   const { t } = useT();
   const { setLang } = useLang();
   const editing = params.get('edit') === '1';
+  // /parent redirects here with ?step=pact when the pact was never accepted.
+  const wantPact = params.get('step') === 'pact' && session.hasCircle;
 
-  const [step, setStep] = useState<Step>(session.hasCircle ? 'profile' : 'circle');
+  const [step, setStep] = useState<Step>(wantPact ? 'pact' : session.hasCircle ? 'profile' : 'circle');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inviteCode, setInviteCode] = useState('');

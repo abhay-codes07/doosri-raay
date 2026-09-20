@@ -128,8 +128,10 @@ function OnboardingRoute() {
   );
 }
 
+/** A parent who has not accepted the family pact is sent to that step first (no pact, no tile). */
 function ParentPage() {
   const s = useSession();
+  if (s.profile && s.isParent && s.profile.pactAccepted !== true) return <Navigate to="/onboarding?step=pact" replace />;
   return <ParentScreen onSignOut={s.signOut} />;
 }
 

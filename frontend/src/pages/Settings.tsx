@@ -172,6 +172,33 @@ export function SettingsPage() {
         </div>
       </section>
 
+      {/* The family pact: readable here, accepted once during onboarding, never revoked from a screen. */}
+      <section className="card" aria-labelledby={`${uid}-pact`}>
+        <h2 id={`${uid}-pact`}>
+          <Bi k="pactTitle" />
+        </h2>
+        <p style={{ marginTop: 0 }}>
+          <span className={`badge ${profile.pactAccepted ? 'badge-ok' : 'badge-amber'}`}>
+            {profile.pactAccepted ? t('pactAccepted') : t('pactNotAccepted')}
+          </span>
+        </p>
+        <details className="pact-details">
+          <summary className="btn">
+            <Bi k="pactRead" />
+          </summary>
+          <blockquote className="pre mt" style={{ fontSize: '1.05em' }}>
+            <Bi k="pactText" />
+          </blockquote>
+        </details>
+        {!profile.pactAccepted && isParent && (
+          <p className="mt">
+            <Link className="btn btn-primary" to="/onboarding?step=pact">
+              {t('pactAcceptNow')}
+            </Link>
+          </p>
+        )}
+      </section>
+
       <p>
         <Link className="btn" to="/onboarding?edit=1">
           {t('editProfile')}

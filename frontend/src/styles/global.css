@@ -557,6 +557,16 @@ input[type='file'] {
   border-color: var(--red);
 }
 
+.pact-details summary {
+  list-style: none;
+  cursor: pointer;
+  width: auto;
+}
+
+.pact-details summary::-webkit-details-marker {
+  display: none;
+}
+
 .step-timer {
   font-size: 0.85em;
   font-weight: 500;
