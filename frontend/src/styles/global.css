@@ -557,6 +557,83 @@ input[type='file'] {
   border-color: var(--red);
 }
 
+/* ---------- Sources panel ---------- */
+
+.sources-toggle {
+  width: 100%;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-height: var(--touch);
+}
+
+.sources-list {
+  padding: 0;
+  margin: 8px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.source {
+  list-style: none;
+  border: 1px solid var(--line);
+  border-left-width: 5px;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  scroll-margin-top: 12px;
+}
+
+.source-ok {
+  border-left-color: var(--ok);
+}
+
+.source-warn {
+  border-left-color: var(--amber);
+}
+
+.source:target {
+  box-shadow: 0 0 0 3px var(--focus);
+}
+
+.source-url {
+  display: inline-flex;
+  flex-direction: column;
+  word-break: break-all;
+  font-weight: 600;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8em;
+}
+
+.quote-ok {
+  color: var(--ok);
+}
+
+.quote-missing {
+  color: var(--amber);
+}
+
+.quote-ok q,
+.quote-missing q {
+  color: var(--ink-soft);
+}
+
+.verified-link {
+  color: var(--ok);
+  font-weight: 600;
+}
+
+.verified-link.warn {
+  color: var(--amber);
+}
+
 .pact-details summary {
   list-style: none;
   cursor: pointer;

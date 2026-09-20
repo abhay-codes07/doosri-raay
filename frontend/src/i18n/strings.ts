@@ -405,6 +405,21 @@ export const S = {
   },
   caseError: { hi: 'केस आगे नहीं बढ़ पाया।', en: 'The case could not proceed.' },
 
+  // ---- sources ----
+  sourcesTitle: { hi: 'स्रोत सत्यापन / Sources verified', en: 'Sources verified / स्रोत सत्यापन' },
+  sourcesSub: {
+    hi: 'हर नियम का दस्तावेज़ सर्वर ने खुद लाकर hash किया और उद्धरण जाँचे।',
+    en: 'Every cited document was fetched and hashed by the backend; the quotes the rules rely on were checked.',
+  },
+  sourcesVerifiedAt: { hi: 'जाँच का समय', en: 'Verified at' },
+  sourcesUnavailable: { hi: 'स्रोत सूची अभी नहीं मिली।', en: 'Source list unavailable right now.' },
+  sourcesNone: { hi: 'कोई स्रोत दर्ज नहीं।', en: 'No sources listed.' },
+  sourceFetched: { hi: 'लाया गया', en: 'fetched' },
+  sourceNotFetched: { hi: 'नहीं मिला', en: 'not fetched' },
+  quoteFound: { hi: 'उद्धरण मिला', en: 'quote found' },
+  quoteNotFound: { hi: 'उद्धरण नहीं मिला', en: 'quote not found' },
+  sourceVerifiedLink: { hi: 'सत्यापित स्रोत देखें', en: 'see verified source' },
+
   // ---- demo ----
   demoTitle: { hi: 'डेमो — एक ब्राउज़र, दो फ़ोन', en: 'Demo — one browser, two phones' },
   demoLeft: { hi: 'पापा का फ़ोन', en: 'Papa\'s phone' },

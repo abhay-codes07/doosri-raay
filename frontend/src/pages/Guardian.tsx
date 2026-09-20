@@ -5,6 +5,7 @@ import { isTaskExpired } from '../api/client';
 import type { CaseSummary, CompleteTaskBody, LadderState, Report } from '../api/types';
 import { PushButton } from '../components/PushButton';
 import { ScreenshotCheck } from '../components/ScreenshotCheck';
+import { SourcesPanel } from '../components/SourcesPanel';
 import { TaskCard } from '../components/TaskCard';
 import { VerdictCard } from '../components/VerdictCard';
 import { Empty, ErrorBox, Section, Spinner } from '../components/ui';
@@ -144,6 +145,8 @@ export function GuardianScreen({ embedded = false }: { embedded?: boolean }) {
         <ScreenshotCheck familyName={parent?.name} familyPhone={parent?.phone} />
 
         <RecentReports identity={identity} familyName={parent?.name} familyPhone={parent?.phone} />
+
+        <SourcesPanel />
       </div>
     </div>
   );

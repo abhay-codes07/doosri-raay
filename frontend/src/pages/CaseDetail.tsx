@@ -2,14 +2,17 @@ import { useCallback, useId, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useApi } from '../api/context';
 import { describeError, isTaskExpired } from '../api/client';
-import type { Case, CompleteTaskBody, RuleSource, Txn } from '../api/types';
+import type { Case, CompleteTaskBody, RuleSource, SourceEntry, Txn } from '../api/types';
+import { SourcesPanel } from '../components/SourcesPanel';
 import { TaskCard } from '../components/TaskCard';
 import { CopyButton, ErrorBox, Section, Spinner } from '../components/ui';
 import { stepForStatus, useDemoConfig, waitSeconds } from '../hooks/useDemoConfig';
 import { usePoll, useProfile } from '../hooks/useProfile';
+import { useSources } from '../hooks/useSources';
 import { useT } from '../i18n/LangContext';
 import type { StringKey } from '../i18n/strings';
 import { datetimeLocalFromIso, formatDuration, isoFromDatetimeLocal } from '../lib/dates';
+import { findSource, sourceAnchor } from '../lib/sources';
 import { getPreview } from '../lib/storage';
 import { REF_MAX_LEN, classifyReference, parseAmount, txnIssues, type TxnIssue } from '../lib/validate';
 
@@ -77,6 +80,7 @@ export function CaseDetailPage() {
   const [terminal, setTerminal] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const demoConfig = useDemoConfig();
+  const verifiedSources = useSources().data?.sources ?? null;
   const kase = usePoll(() => api.getCase(id), 3000, [api, id], Boolean(id) && !terminal);
   const c: Case | null = kase.data;
   const reachedEnd = c !== null && (c.status === 'filed' || c.status === 'error');
@@ -255,7 +259,7 @@ export function CaseDetailPage() {
                   {t('openNcrp')}
                 </a>
               </p>
-              <SourceLine source={a.ncrp?.source} caveat={a.ncrp?.caveat} />
+              <SourceLine source={a.ncrp?.source} caveat={a.ncrp?.caveat} sources={verifiedSources} />
             </Section>
           )}
 
@@ -276,7 +280,7 @@ export function CaseDetailPage() {
                   : t('ezeroNoThreshold', { state: a.ezeroFir.state ?? c.state ?? '' })}
               </p>
               {a.ezeroFir.note && <p className="muted">{a.ezeroFir.note}</p>}
-              <SourceLine source={a.ezeroFir.source ?? (a.ezeroFir.sourceUrl ? { url: a.ezeroFir.sourceUrl } : undefined)} caveat={a.ezeroFir.caveat} />
+              <SourceLine source={a.ezeroFir.source ?? (a.ezeroFir.sourceUrl ? { url: a.ezeroFir.sourceUrl } : undefined)} caveat={a.ezeroFir.caveat} sources={verifiedSources} />
             </Section>
           )}
 
@@ -301,11 +305,15 @@ export function CaseDetailPage() {
                   {t('mrmPortal')}
                 </a>
               </p>
-              <SourceLine source={a.mrm.source} caveat={a.mrm.caveat} />
+              <SourceLine source={a.mrm.source} caveat={a.mrm.caveat} sources={verifiedSources} />
             </Section>
           )}
         </div>
       )}
+
+      <div className="mt">
+        <SourcesPanel />
+      </div>
     </div>
   );
 }
@@ -501,13 +509,18 @@ function ConfirmTxns({
   );
 }
 
-/** "Source: outlet, date" (linked) plus the rule's caveat, under the rule-based cards. */
-function SourceLine({ source, caveat }: { source?: RuleSource; caveat?: string }) {
+/**
+ * "Source: outlet, date" (linked) plus the rule's caveat, under the rule-based cards. When the
+ * backend has fetched and hashed that same document (GET /sources) a "verified" link jumps to its
+ * entry in the sources panel.
+ */
+function SourceLine({ source, caveat, sources }: { source?: RuleSource; caveat?: string; sources: SourceEntry[] | null }) {
   const { t } = useT();
   const outlet = typeof source?.outlet === 'string' ? source.outlet.trim() : '';
   const date = typeof source?.date === 'string' ? source.date.trim() : '';
   const url = typeof source?.url === 'string' && /^https?:\/\//.test(source.url) ? source.url : '';
   const label = [outlet, date].filter(Boolean).join(', ') || (url ? url.replace(/^https?:\/\//, '').split('/')[0] : '');
+  const verified = findSource(sources, url);
   if (!label && !caveat) return null;
   return (
     <div className="source-line small muted">
@@ -520,6 +533,16 @@ function SourceLine({ source, caveat }: { source?: RuleSource; caveat?: string }
             </a>
           ) : (
             label
+          )}
+          {verified && (
+            <>
+              {' · '}
+              <a href={`#${sourceAnchor(verified)}`} className={verified.fetched && verified.quotes.every((q) => q.found) ? 'verified-link' : 'verified-link warn'}>
+                {verified.fetched && verified.quotes.every((q) => q.found) ? '✓ ' : '⚠ '}
+                {t('sourceVerifiedLink')}
+                {verified.sha256 ? ` (${verified.sha256.slice(0, 8)})` : ''}
+              </a>
+            </>
           )}
         </p>
       )}

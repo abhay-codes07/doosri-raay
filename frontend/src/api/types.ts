@@ -355,6 +355,28 @@ export interface DemoConfig {
   timeouts?: { rung?: number; confirm?: number; call1930?: number; ncrp?: number; mrm?: number };
 }
 
+/** GET /sources: each cited document, fetched and hashed by the backend, with its load-bearing quotes. */
+export interface SourceQuote {
+  quote: string;
+  found: boolean;
+}
+
+export interface SourceEntry {
+  url: string;
+  sha256?: string;
+  bytes?: number;
+  contentType?: string;
+  fetchedAt?: string;
+  fetched: boolean;
+  quotes: SourceQuote[];
+}
+
+export interface SourcesResponse {
+  sources: SourceEntry[];
+  verifiedAt?: string;
+  summary?: string;
+}
+
 export interface ApiErrorBody {
   error: string;
   message?: string;

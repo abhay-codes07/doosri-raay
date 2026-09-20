@@ -24,6 +24,8 @@ import type {
   PushPublicKeyResponse,
   Report,
   SosResponse,
+  SourceEntry,
+  SourcesResponse,
   TasksResponse,
   UploadRequest,
   UploadResponse,
@@ -125,6 +127,8 @@ export interface ApiClient {
   // push
   getPushPublicKey(): Promise<PushPublicKeyResponse>;
   pushSubscribe(sub: PushSubscriptionJSON): Promise<void>;
+  // sources ("documents you can prove")
+  getSources(): Promise<SourcesResponse>;
   // demo
   getDemoConfig(): Promise<DemoConfig>;
   /** Stops executions, closes tasks and clears today's check-in for the caller's circle. */
@@ -266,6 +270,27 @@ export function createApiClient(getToken: TokenProvider = amplifyTokenProvider, 
     getPushPublicKey: () => request('GET', '/push/public-key'),
     pushSubscribe: async (sub) => {
       await request('POST', '/push/subscribe', sub);
+    },
+    getSources: async () => {
+      const r = await request<Partial<SourcesResponse>>('GET', '/sources');
+      const raw: unknown[] = Array.isArray(r.sources) ? r.sources : [];
+      const sources: SourceEntry[] = raw.flatMap((s) => {
+        if (!isRecord(s) || typeof s.url !== 'string') return [];
+        const quotesRaw: unknown[] = Array.isArray(s.quotes) ? s.quotes : [];
+        const quotes = quotesRaw.flatMap((q) => (isRecord(q) && typeof q.quote === 'string' ? [{ quote: q.quote, found: q.found === true }] : []));
+        return [
+          {
+            url: s.url,
+            sha256: typeof s.sha256 === 'string' ? s.sha256 : undefined,
+            bytes: typeof s.bytes === 'number' ? s.bytes : undefined,
+            contentType: typeof s.contentType === 'string' ? s.contentType : undefined,
+            fetchedAt: typeof s.fetchedAt === 'string' ? s.fetchedAt : undefined,
+            fetched: s.fetched === true,
+            quotes,
+          },
+        ];
+      });
+      return { sources, verifiedAt: typeof r.verifiedAt === 'string' ? r.verifiedAt : undefined, summary: typeof r.summary === 'string' ? r.summary : undefined };
     },
     getDemoConfig: () => request('GET', '/demo/config'),
     demoReset: () => request('POST', '/demo/reset', {}),
