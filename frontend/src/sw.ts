@@ -66,18 +66,17 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
   const target = new URL(data.url ?? '/guardian', self.location.origin).href;
   event.waitUntil(
     (async () => {
-      const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-      for (const client of clients) {
-        if ('focus' in client) {
+      // Prefer a window this worker already controls (same origin, in-app navigation works there);
+      // otherwise open a fresh window rather than hijacking an unrelated tab.
+      const controlled = await self.clients.matchAll({ type: 'window', includeUncontrolled: false });
+      const client = controlled.find((c) => c.url.startsWith(self.location.origin));
+      if (client) {
+        try {
           await client.focus();
-          if ('navigate' in client && client.url !== target) {
-            try {
-              await client.navigate(target);
-            } catch {
-              /* ignore */
-            }
-          }
+          if (client.url !== target) await client.navigate(target);
           return;
+        } catch {
+          /* fall through to a new window */
         }
       }
       await self.clients.openWindow(target);
