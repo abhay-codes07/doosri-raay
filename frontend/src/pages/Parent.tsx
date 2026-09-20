@@ -53,6 +53,10 @@ function ParentTile({ embedded, onSignOut }: { embedded: boolean; onSignOut?: ()
   const thought = thoughts[dayOfYearIST(now) % thoughts.length];
 
   // ---- silent daily check-in (once per IST day, retry on failure) ----
+  // The server's lastCheckinDate (GET /profile) wins over the local marker: after a demo reset or
+  // on a second device the marker can say "done" while the server has no check-in for today.
+  const serverCheckinDate = profile?.lastCheckinDate;
+  const postedDay = useRef<string | null>(null);
   useEffect(() => {
     if (!profile || profile.role !== 'parent') return undefined;
     let timer: number | undefined;
@@ -60,9 +64,16 @@ function ParentTile({ embedded, onSignOut }: { embedded: boolean; onSignOut?: ()
     const attempt = async () => {
       if (cancelled) return;
       const day = istDateString();
-      if (readString(KEYS.checkinDay(identity)) === day) return;
+      if (postedDay.current === day) return;
+      const doneToday =
+        typeof serverCheckinDate === 'string' ? serverCheckinDate === day : readString(KEYS.checkinDay(identity)) === day;
+      if (doneToday) {
+        writeString(KEYS.checkinDay(identity), day);
+        return;
+      }
       try {
         await api.checkin('tile');
+        postedDay.current = day;
         writeString(KEYS.checkinDay(identity), day);
       } catch {
         timer = window.setTimeout(attempt, CHECKIN_RETRY_MS);
@@ -79,7 +90,7 @@ function ParentTile({ embedded, onSignOut }: { embedded: boolean; onSignOut?: ()
       document.removeEventListener('visibilitychange', onVisible);
     };
     // `today` re-arms this effect when the IST date changes while the tile is open.
-  }, [api, identity, profile, today]);
+  }, [api, identity, profile, serverCheckinDate, today]);
 
   // ---- covert SOS: triple tap on the date ----
   // Permission was asked during onboarding; here we only keep a background watch so the SOS can
