@@ -1,0 +1,373 @@
+{
+  "generatedAt": "2026-09-20T11:08:03Z",
+  "generator": "scripts/verify_sources.py",
+  "summary": {
+    "sources": 13,
+    "sourcesFetched": 12,
+    "sourcesNotFetched": [
+      "https://www.weforum.org/publications/global-risks-report-2026/in-full/global-risks-report-2026-key-findings/"
+    ],
+    "citations": 25,
+    "citationsVerified": 25,
+    "citationsMissing": [],
+    "citationsUnchecked": 0
+  },
+  "sources": [
+    {
+      "id": "i4c_advisory_digital_arrest",
+      "title": "I4C advisory TAU/ADV/003 'Digital Arrest' scam, 6 March 2025",
+      "url": "https://cybercrime.gov.in/Webform/theme/resources/advisories/ADVISORYTAU-ADV-003DigitalArrest06.03.2025.pdf",
+      "kind": "pdf",
+      "fetched": true,
+      "httpStatus": 200,
+      "contentType": "application/pdf",
+      "sha256": "93ae8daf0381221dbdee99f258832c6e94ab2719c755096320e712829bb66be6",
+      "bytes": 471872,
+      "fetchedAt": "2026-09-20T11:07:53Z",
+      "error": null,
+      "quotes": [
+        {
+          "file": "backend/classify_worker/patterns.json",
+          "path": "generalAdvice",
+          "quote": "Speak to your relatives and friends before taking any action to transfer money.",
+          "quoteFound": true
+        },
+        {
+          "file": "backend/classify_worker/patterns.json",
+          "path": "reportAdvice",
+          "quote": "Report cyber frauds immediately at www.cybercrime.gov.in or by calling 1930.",
+          "quoteFound": true
+        },
+        {
+          "file": "backend/classify_worker/patterns.json",
+          "path": "patterns[0].advisory",
+          "quote": "There is no concept of Digital Arrest under any Indian Laws.",
+          "quoteFound": true
+        },
+        {
+          "file": "backend/classify_worker/patterns.json",
+          "path": "patterns[1].advisory",
+          "quote": "use of their Aadhaar card and registered mobile number in illegal activities",
+          "quoteFound": true
+        },
+        {
+          "file": "backend/classify_worker/patterns.json",
+          "path": "patterns[2].advisory",
+          "quote": "sending or receiving contraband items like drugs or fake passports or SIM cards through FedEx or DHL",
+          "quoteFound": true
+        },
+        {
+          "file": "backend/classify_worker/patterns.json",
+          "path": "patterns[3].advisory",
+          "quote": "Claims may also involve a loved one supposedly caught in criminal activities or accidents.",
+          "quoteFound": true
+        },
+        {
+          "file": "backend/classify_worker/patterns.json",
+          "path": "patterns[4].advisory",
+          "quote": "Never share personal or financial information over the phone, email, or messaging apps without verifying the request.",
+          "quoteFound": true
+        },
+        {
+          "file": "backend/classify_worker/patterns.json",
+          "path": "patterns[5].advisory",
+          "quote": "Always verify the identity of the caller or sender before taking any action",
+          "quoteFound": true
+        },
+        {
+          "file": "backend/classify_worker/patterns.json",
+          "path": "patterns[6].advisory",
+          "quote": "Speak to your relatives and friends before taking any action to transfer money.",
+          "quoteFound": true
+        },
+        {
+          "file": "backend/classify_worker/patterns.json",
+          "path": "patterns[7].advisory",
+          "quote": "Never share personal or financial information over the phone, email, or messaging apps without verifying the request.",
+          "quoteFound": true
+        },
+        {
+          "file": "backend/classify_worker/patterns.json",
+          "path": "patterns[8].advisory",
+          "quote": "Speak to your relatives and friends before taking any action to transfer money.",
+          "quoteFound": true
+        },
+        {
+          "file": "backend/classify_worker/patterns.json",
+          "path": "patterns[9].advisory",
+          "quote": "Never share personal or financial information over the phone, email, or messaging apps without verifying the request.",
+          "quoteFound": true
+        }
+      ],
+      "quoteFound": true
+    },
+    {
+      "id": "ncrp_home",
+      "title": "National Cyber Crime Reporting Portal (home)",
+      "url": "https://cybercrime.gov.in/",
+      "kind": "html",
+      "fetched": true,
+      "httpStatus": 200,
+      "contentType": "text/html; charset=utf-8",
+      "sha256": "69cea44562af719a7f0ce7ca98067be9dd51b62a89e897749ebb29ab961b6b9b",
+      "bytes": 80575,
+      "fetchedAt": "2026-09-20T11:07:54Z",
+      "error": null,
+      "quotes": [
+        {
+          "file": "backend/classify_worker/patterns.json",
+          "path": "patterns[10].advisory",
+          "quote": "Fake mails are being sent impersonating officials of Indian Cyber Crime Coordination Centre - CEO I4C, Intelligence Bureau and Delhi Police. The claim is FAKE.",
+          "quoteFound": true
+        }
+      ],
+      "quoteFound": true
+    },
+    {
+      "id": "ncrp_login_checklist",
+      "title": "NCRP citizen login: check list for complainant",
+      "url": "https://cybercrime.gov.in/Webform/Crime_AuthoLogin.aspx",
+      "kind": "html",
+      "fetched": true,
+      "httpStatus": 200,
+      "contentType": "text/html; charset=utf-8",
+      "sha256": "fab6ac3c419dd57d8acef3b347045c329dedbc3a13af938f66214cb0c9e29ccd",
+      "bytes": 89704,
+      "fetchedAt": "2026-09-20T11:07:55Z",
+      "error": null,
+      "quotes": [
+        {
+          "file": "backend/recovery_agent/rules_data.json",
+          "path": "ncrp.narrativeMinChars",
+          "quote": "Incident details (minimum 200 characters) without any special characters",
+          "quoteFound": true
+        },
+        {
+          "file": "backend/recovery_agent/rules_data.json",
+          "path": "ncrp.transactionIdDigits",
+          "quote": "12-digit Transaction id/UTR No.",
+          "quoteFound": true
+        },
+        {
+          "file": "backend/recovery_agent/rules_data.json",
+          "path": "ncrp.idUploadRequired",
+          "quote": "Soft copy of any national Id ( Voter Id, Driving license, Passport, PAN Card, Aadhaar Card) of complainant",
+          "quoteFound": true
+        }
+      ],
+      "quoteFound": true
+    },
+    {
+      "id": "sanchar_saathi",
+      "title": "Sanchar Saathi (DoT) incl. Chakshu",
+      "url": "https://sancharsaathi.gov.in/",
+      "kind": "html",
+      "fetched": true,
+      "httpStatus": 200,
+      "contentType": "text/html;charset=UTF-8",
+      "sha256": "6034bc5dafcfe33681fce31f4fe41b9fd61c2ee5c13f4c633b14b00a155269d3",
+      "bytes": 3024414,
+      "fetchedAt": "2026-09-20T11:07:56Z",
+      "error": null,
+      "quotes": [
+        {
+          "file": "backend/classify_worker/patterns.json",
+          "path": "patterns[11].advisory",
+          "quote": "Chakshu facilitates citizens to report UCC or spam",
+          "quoteFound": true
+        }
+      ],
+      "quoteFound": true
+    },
+    {
+      "id": "i4c_home",
+      "title": "Indian Cybercrime Coordination Centre (I4C)",
+      "url": "https://i4c.mha.gov.in/",
+      "kind": "html",
+      "fetched": true,
+      "httpStatus": 200,
+      "contentType": "text/html; charset=utf-8",
+      "sha256": "3f16d9b495baea33f8cc3af80f3ddf273cbf080de6d5101e0e9216fe1ac2bef6",
+      "bytes": 69393,
+      "fetchedAt": "2026-09-20T11:07:57Z",
+      "error": null,
+      "quotes": [],
+      "quoteFound": null
+    },
+    {
+      "id": "wef_global_risks_2026",
+      "title": "WEF Global Risks Report 2026, key findings",
+      "url": "https://www.weforum.org/publications/global-risks-report-2026/in-full/global-risks-report-2026-key-findings/",
+      "kind": "html",
+      "fetched": false,
+      "httpStatus": 403,
+      "contentType": "text/html",
+      "sha256": null,
+      "bytes": null,
+      "fetchedAt": "2026-09-20T11:07:58Z",
+      "error": "HTTP 403",
+      "quotes": [],
+      "quoteFound": null
+    },
+    {
+      "id": null,
+      "title": null,
+      "url": "https://www.hindustantimes.com/cities/chandigarh-news/haryana-to-lodge-e-zero-fir-in-cyber-financial-fraud-cases-101782412687221.html",
+      "kind": "html",
+      "fetched": true,
+      "httpStatus": 200,
+      "contentType": "text/html; charset=utf-8",
+      "sha256": "6de4462bcb2de11412a14780078e0b6d4a3bc7b97a67817f8c90e68cc69235d6",
+      "bytes": 399518,
+      "fetchedAt": "2026-09-20T11:07:58Z",
+      "error": null,
+      "quotes": [
+        {
+          "file": "backend/recovery_agent/rules_data.json",
+          "path": "ezeroFir.states.haryana",
+          "quote": "if a victim of cyber financial fraud involving ₹ 1 lakh or more reports the matter through helpline 1930, the helpline police team will fill e-zero FIR form based on the information provided by the complainant",
+          "quoteFound": true
+        }
+      ],
+      "quoteFound": true
+    },
+    {
+      "id": null,
+      "title": null,
+      "url": "https://timesofindia.indiatimes.com/city/jaipur/cyber-fraud-of-rs-1l-or-more-to-trigger-automatic-e-zero-fir-in-state/amp_articleshow/132591321.cms",
+      "kind": "html",
+      "fetched": true,
+      "httpStatus": 200,
+      "contentType": "text/html;charset=UTF-8",
+      "sha256": "cf121b3babcb5e89bc5fb6d71aff0e64d7d515d7d6ea8c291875e176ec74ce68",
+      "bytes": 225146,
+      "fetchedAt": "2026-09-20T11:07:59Z",
+      "error": null,
+      "quotes": [
+        {
+          "file": "backend/recovery_agent/rules_data.json",
+          "path": "ezeroFir.states.rajasthan",
+          "quote": "Victims of cyber financial fraud involving Rs 1 lakh or more in Rajasthan will now have an e-Zero FIR registered automatically immediately after reporting of the crime",
+          "quoteFound": true
+        }
+      ],
+      "quoteFound": true
+    },
+    {
+      "id": null,
+      "title": null,
+      "url": "https://www.newindianexpress.com/india/2026/Jul/29/punjab-police-launches-e-zero-fir-mechanism-for-swift-action-in-cyber-fraud-cases",
+      "kind": "html",
+      "fetched": true,
+      "httpStatus": 200,
+      "contentType": "text/html; charset=utf-8",
+      "sha256": "61f558c943711e3b94ff78e7c74895d1d924d12fe1449ad03b3eefd398ebab33",
+      "bytes": 1546156,
+      "fetchedAt": "2026-09-20T11:08:00Z",
+      "error": null,
+      "quotes": [
+        {
+          "file": "backend/recovery_agent/rules_data.json",
+          "path": "ezeroFir.states.punjab",
+          "quote": "Punjab Police has launched the e-Zero FIR mechanism for cyber financial fraud cases involving fraudulent transactions above Rs 5 lakh",
+          "quoteFound": true
+        }
+      ],
+      "quoteFound": true
+    },
+    {
+      "id": null,
+      "title": null,
+      "url": "https://www.newindianexpress.com/india/2026/Aug/04/sc-issues-13-point-directions-to-fight-digital-arrest-scams",
+      "kind": "html",
+      "fetched": true,
+      "httpStatus": 200,
+      "contentType": "text/html; charset=utf-8",
+      "sha256": "6e044298c2268a17be372246ccc617981e28177e4fde8662e22260512cd11701",
+      "bytes": 1549095,
+      "fetchedAt": "2026-09-20T11:08:01Z",
+      "error": null,
+      "quotes": [
+        {
+          "file": "backend/recovery_agent/rules_data.json",
+          "path": "ezeroFir.scDirection",
+          "quote": "the remaining States which have not yet done so are directed to notify and operationalise their State Cyber Crime Coordination Centres within four weeks; and take steps to adopt the e-Zero FIR mechanism, in consultation with I4C",
+          "quoteFound": true
+        }
+      ],
+      "quoteFound": true
+    },
+    {
+      "id": null,
+      "title": null,
+      "url": "https://www.deccanchronicle.com/southern-states/telangana/cybercrime-victims-to-get-refunds-online-1962253",
+      "kind": "html",
+      "fetched": true,
+      "httpStatus": 200,
+      "contentType": "text/html; charset=utf-8",
+      "sha256": "0d772312fed3e9d384b3e68338dd59a1ea5261e7291fc70fa38d2d237cad88fc",
+      "bytes": 362836,
+      "fetchedAt": "2026-09-20T11:08:02Z",
+      "error": null,
+      "quotes": [
+        {
+          "file": "backend/recovery_agent/rules_data.json",
+          "path": "mrm.noFirUpTo",
+          "quote": "refunds up to ₹50,000 frozen in a single account can be processed without an FIR or court order, based on a police report and indemnity bond submitted online",
+          "quoteFound": true
+        }
+      ],
+      "quoteFound": true
+    },
+    {
+      "id": null,
+      "title": null,
+      "url": "https://www.freepressjournal.in/mumbai/relief-for-cyber-scam-victims-mha-launches-online-money-restoration-module-to-recover-frozen-funds",
+      "kind": "html",
+      "fetched": true,
+      "httpStatus": 200,
+      "contentType": "text/html; charset=UTF-8",
+      "sha256": "4c956897daef6995bfdec724d82406f6ce123a9514f46f6f32ff86797822fbc6",
+      "bytes": 102339,
+      "fetchedAt": "2026-09-20T11:08:03Z",
+      "error": null,
+      "quotes": [
+        {
+          "file": "backend/recovery_agent/rules_data.json",
+          "path": "mrm.firMandatoryAbove",
+          "quote": "If the held amount exceeds Rs50,000 in a single bank account, lodging an FIR is mandatory under the rules.",
+          "quoteFound": true
+        },
+        {
+          "file": "backend/recovery_agent/rules_data.json",
+          "path": "mrm.ackRequired",
+          "quote": "the portal (MRM) is strictly for victims who registered their complaint immediately via the 1930 Helpline or the NCRP portal and possess a 14-digit Registered Acknowledgement Number",
+          "quoteFound": true
+        }
+      ],
+      "quoteFound": true
+    },
+    {
+      "id": null,
+      "title": null,
+      "url": "https://www.thehindu.com/news/cities/chennai/how-to-lodge-a-cybercrime-complaint/article69923101.ece",
+      "kind": "html",
+      "fetched": true,
+      "httpStatus": 200,
+      "contentType": "text/html; charset=UTF-8",
+      "sha256": "ad94e2830e78eb2df3b3903d341a8c2c910fd156f9ebc1e89ba06df51e66d28b",
+      "bytes": 208089,
+      "fetchedAt": "2026-09-20T11:08:03Z",
+      "error": null,
+      "quotes": [
+        {
+          "file": "backend/recovery_agent/rules_data.json",
+          "path": "ncrp.ackNumber",
+          "quote": "the victim receives a message with a 14-digit acknowledgement number starting with “329”",
+          "quoteFound": true
+        }
+      ],
+      "quoteFound": true
+    }
+  ]
+}
