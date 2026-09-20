@@ -1,0 +1,462 @@
+{
+  "version": "2026-09-20",
+  "note": "Scam pattern catalogue for the classifier: 12 pretexts used against Indian families, each with red flags, tactics, a bilingual label, an example for the few-shot prompt and the official advisory sentence (quote + source) shown to the family as the explanation. Quotes are checked against the live source by scripts/verify_sources.py. scamType maps to the classifier's enum; several pretexts share DIGITAL_ARREST / OTHER.",
+  "advisorySources": {
+    "i4c_advisory": {
+      "outlet": "I4C advisory TAU/ADV/003 (cybercrime.gov.in)",
+      "date": "6 Mar 2025",
+      "url": "https://cybercrime.gov.in/Webform/theme/resources/advisories/ADVISORYTAU-ADV-003DigitalArrest06.03.2025.pdf"
+    },
+    "ncrp_home": {
+      "outlet": "National Cyber Crime Reporting Portal (cybercrime.gov.in)",
+      "date": null,
+      "url": "https://cybercrime.gov.in/"
+    },
+    "sanchar_saathi": {
+      "outlet": "Sanchar Saathi (Department of Telecommunications)",
+      "date": null,
+      "url": "https://sancharsaathi.gov.in/"
+    }
+  },
+  "generalAdvice": {
+    "label": {"en": "Ask the family before moving money", "hi": "पैसा भेजने से पहले परिवार से पूछें"},
+    "source": {
+      "outlet": "I4C advisory TAU/ADV/003 (cybercrime.gov.in)",
+      "date": "6 Mar 2025",
+      "url": "https://cybercrime.gov.in/Webform/theme/resources/advisories/ADVISORYTAU-ADV-003DigitalArrest06.03.2025.pdf"
+    },
+    "quote": "Speak to your relatives and friends before taking any action to transfer money.",
+    "caveat": "I4C advisory, 6 Mar 2025"
+  },
+  "reportAdvice": {
+    "label": {"en": "Report on 1930 or cybercrime.gov.in", "hi": "1930 या cybercrime.gov.in पर शिकायत करें"},
+    "source": {
+      "outlet": "I4C advisory TAU/ADV/003 (cybercrime.gov.in)",
+      "date": "6 Mar 2025",
+      "url": "https://cybercrime.gov.in/Webform/theme/resources/advisories/ADVISORYTAU-ADV-003DigitalArrest06.03.2025.pdf"
+    },
+    "quote": "Report cyber frauds immediately at www.cybercrime.gov.in or by calling 1930.",
+    "caveat": "I4C advisory, 6 Mar 2025"
+  },
+  "patterns": [
+    {
+      "id": "digital_arrest",
+      "scamType": "DIGITAL_ARREST",
+      "label": {"en": "Digital arrest (fake police / CBI / ED video call)", "hi": "डिजिटल अरेस्ट (नकली पुलिस / CBI / ED वीडियो कॉल)"},
+      "tactics": ["authority", "urgency", "secrecy", "verification_account"],
+      "redFlags": [
+        "Caller claims to be police, CBI, ED, RBI, customs or a court, often on a video call with a fake office behind them",
+        "Says you are under 'digital arrest' and must stay on the call",
+        "Orders you to tell no one, not even family",
+        "Money must go to a 'verification', 'RBI' or 'safe custody' account and will be 'returned'"
+      ],
+      "advisory": {
+        "source": {
+          "outlet": "I4C advisory TAU/ADV/003 (cybercrime.gov.in)",
+          "date": "6 Mar 2025",
+          "url": "https://cybercrime.gov.in/Webform/theme/resources/advisories/ADVISORYTAU-ADV-003DigitalArrest06.03.2025.pdf"
+        },
+        "quote": "There is no concept of Digital Arrest under any Indian Laws.",
+        "caveat": "I4C advisory, 6 Mar 2025"
+      },
+      "example": {
+        "input": "Main CBI officer Rajesh Verma bol raha hoon. Aapke Aadhaar se ek money laundering case juda hai. Aap digital arrest me hain, video call se hatna mat, kisi ko batana mat. Case band karne ke liye RBI verification account me 2 lakh transfer karo abhi.",
+        "output": {
+          "state": "likely",
+          "scamType": "DIGITAL_ARREST",
+          "tactics": ["authority", "urgency", "secrecy", "verification_account"],
+          "redFlags": ["Claims to be CBI on a video call", "Says you are under 'digital arrest'", "Tells you to keep it secret", "Asks for transfer to a 'verification account'"],
+          "sayHi": "Police ya CBI kabhi video call par giraftaar nahi karte. Phone kaat dein, paisa na bhejein, 1930 par call karein.",
+          "sayEn": "No police or court arrests anyone on a video call. Hang up, send nothing, call 1930."
+        }
+      }
+    },
+    {
+      "id": "trai_sim_block",
+      "scamType": "DIGITAL_ARREST",
+      "label": {"en": "TRAI / DoT 'your SIM will be blocked' pretext", "hi": "TRAI / DoT 'आपका सिम बंद होगा' बहाना"},
+      "tactics": ["authority", "urgency"],
+      "redFlags": [
+        "IVR or caller from 'TRAI' or the 'Telecom Department' says your number or Aadhaar was used for illegal activity",
+        "Number 'will be disconnected in 2 hours' unless you press 9 or call back",
+        "Hands you over to 'police' or 'cyber cell': the entry point to a digital arrest"
+      ],
+      "advisory": {
+        "source": {
+          "outlet": "I4C advisory TAU/ADV/003 (cybercrime.gov.in)",
+          "date": "6 Mar 2025",
+          "url": "https://cybercrime.gov.in/Webform/theme/resources/advisories/ADVISORYTAU-ADV-003DigitalArrest06.03.2025.pdf"
+        },
+        "quote": "use of their Aadhaar card and registered mobile number in illegal activities",
+        "caveat": "I4C advisory, 6 Mar 2025 (listed as a digital-arrest pretext)"
+      },
+      "example": {
+        "input": "This is a call from TRAI. Your mobile number has been used for illegal marketing and will be disconnected within 2 hours. Press 9 to talk to the officer and verify your Aadhaar.",
+        "output": {
+          "state": "likely",
+          "scamType": "DIGITAL_ARREST",
+          "tactics": ["authority", "urgency"],
+          "redFlags": ["'TRAI' threatening disconnection within hours", "Press 9 to reach an 'officer'", "Aadhaar 'verification' over the phone"],
+          "sayHi": "TRAI ya DoT phone par SIM band karne ki dhamki nahi dete. Phone kaat dein, apne operator se poochhein.",
+          "sayEn": "TRAI does not call to threaten disconnection. Hang up and ask your mobile operator directly."
+        }
+      }
+    },
+    {
+      "id": "courier_customs",
+      "scamType": "COURIER_CUSTOMS",
+      "label": {"en": "Courier / customs parcel with drugs", "hi": "कूरियर / कस्टम्स पार्सल में ड्रग्स"},
+      "tactics": ["authority", "urgency", "payment_switch"],
+      "redFlags": [
+        "'FedEx / DHL / customs' says a parcel in your name holds drugs, passports or SIM cards",
+        "Press 9 or call back to speak to 'narcotics' or 'Mumbai police'",
+        "A 'fine' or 'clearance fee' must be paid now to close the case"
+      ],
+      "advisory": {
+        "source": {
+          "outlet": "I4C advisory TAU/ADV/003 (cybercrime.gov.in)",
+          "date": "6 Mar 2025",
+          "url": "https://cybercrime.gov.in/Webform/theme/resources/advisories/ADVISORYTAU-ADV-003DigitalArrest06.03.2025.pdf"
+        },
+        "quote": "sending or receiving contraband items like drugs or fake passports or SIM cards through FedEx or DHL",
+        "caveat": "I4C advisory, 6 Mar 2025 (listed as a digital-arrest pretext)"
+      },
+      "example": {
+        "input": "FedEx: Aapka parcel Mumbai customs me pakda gaya hai, usme drugs aur 4 passports mile hain. Narcotics dept se baat karne ke liye 9 dabayein. Case clear karne ke liye fine online bharein.",
+        "output": {
+          "state": "likely",
+          "scamType": "COURIER_CUSTOMS",
+          "tactics": ["authority", "urgency", "payment_switch"],
+          "redFlags": ["Courier 'customs' parcel with drugs story", "Press 9 to talk to 'narcotics'", "Fine to be paid online to clear the case"],
+          "sayHi": "Customs ya courier aise fine phone par nahi lete. Phone kaat dein aur parivaar se poochhein.",
+          "sayEn": "Customs and couriers do not collect fines over the phone. Hang up and ask your family."
+        }
+      }
+    },
+    {
+      "id": "family_emergency",
+      "scamType": "OTHER",
+      "label": {"en": "'Your son is in trouble' emergency call", "hi": "'आपका बेटा मुसीबत में है' कॉल"},
+      "tactics": ["authority", "urgency", "secrecy"],
+      "redFlags": [
+        "Caller says a son, daughter or grandchild is in custody, in hospital or in an accident",
+        "A 'senior officer' or 'doctor' needs money right now to 'settle' it quietly",
+        "You are told not to call the family member yourself"
+      ],
+      "advisory": {
+        "source": {
+          "outlet": "I4C advisory TAU/ADV/003 (cybercrime.gov.in)",
+          "date": "6 Mar 2025",
+          "url": "https://cybercrime.gov.in/Webform/theme/resources/advisories/ADVISORYTAU-ADV-003DigitalArrest06.03.2025.pdf"
+        },
+        "quote": "Claims may also involve a loved one supposedly caught in criminal activities or accidents.",
+        "caveat": "I4C advisory, 6 Mar 2025"
+      },
+      "example": {
+        "input": "Uncle ji, main Pune police station se Inspector bol raha hoon. Aapka beta Aman ek ladki ke saath pakda gaya hai, uska phone hamare paas hai. Abhi 50,000 bhejo warna FIR ho jayegi. Usse call mat karna, badnaami hogi.",
+        "output": {
+          "state": "likely",
+          "scamType": "OTHER",
+          "tactics": ["authority", "urgency", "secrecy"],
+          "redFlags": ["'Inspector' says your son is in custody", "Money now or an FIR", "Tells you not to call your son"],
+          "sayHi": "Pehle apne bete ko khud call karein ya parivaar ke code word se poochhein. Paisa na bhejein.",
+          "sayEn": "Call your son yourself first, or use the family code word. Do not send money to this caller."
+        }
+      }
+    },
+    {
+      "id": "kyc_phishing",
+      "scamType": "KYC_PHISHING",
+      "label": {"en": "KYC update / account block link", "hi": "KYC अपडेट / खाता ब्लॉक लिंक"},
+      "tactics": ["urgency", "authority"],
+      "redFlags": [
+        "'Your account/PAN/SIM will be blocked today' unless you update KYC through a link or APK",
+        "Link is not the bank's own .bank.in / official domain",
+        "Asks for OTP, PIN, card number or to install an app"
+      ],
+      "advisory": {
+        "source": {
+          "outlet": "I4C advisory TAU/ADV/003 (cybercrime.gov.in)",
+          "date": "6 Mar 2025",
+          "url": "https://cybercrime.gov.in/Webform/theme/resources/advisories/ADVISORYTAU-ADV-003DigitalArrest06.03.2025.pdf"
+        },
+        "quote": "Never share personal or financial information over the phone, email, or messaging apps without verifying the request.",
+        "caveat": "I4C advisory, 6 Mar 2025"
+      },
+      "example": {
+        "input": "Dear customer your SBI account will be blocked today. Update KYC now http://sbi-kyc-update.xyz/verify or lose access. Share OTP to complete.",
+        "output": {
+          "state": "likely",
+          "scamType": "KYC_PHISHING",
+          "tactics": ["urgency", "authority"],
+          "redFlags": ["Non-bank link (.xyz), not a bank.in domain", "Threatens account block today", "Asks you to share an OTP"],
+          "sayHi": "Bank kabhi OTP ya link se KYC nahi karwata. Link na kholein, apni branch jaakar poochhein.",
+          "sayEn": "Banks never do KYC through an OTP or a link like this. Do not open it; ask your branch."
+        }
+      }
+    },
+    {
+      "id": "upi_collect",
+      "scamType": "UPI_COLLECT",
+      "label": {"en": "UPI collect request / 'enter PIN to receive'", "hi": "UPI कलेक्ट रिक्वेस्ट / 'पैसे पाने के लिए PIN डालें'"},
+      "tactics": ["urgency", "payment_switch"],
+      "redFlags": [
+        "A 'refund', 'cashback' or 'prize' arrives as a UPI collect request",
+        "You are told to enter your UPI PIN to receive money (a PIN only ever sends money)",
+        "Buyer on OLX/marketplace 'sends' a request instead of paying"
+      ],
+      "advisory": {
+        "source": {
+          "outlet": "I4C advisory TAU/ADV/003 (cybercrime.gov.in)",
+          "date": "6 Mar 2025",
+          "url": "https://cybercrime.gov.in/Webform/theme/resources/advisories/ADVISORYTAU-ADV-003DigitalArrest06.03.2025.pdf"
+        },
+        "quote": "Always verify the identity of the caller or sender before taking any action",
+        "caveat": "I4C advisory, 6 Mar 2025"
+      },
+      "example": {
+        "input": "Congrats! You won Rs 5,000 cashback. Accept this UPI collect request and enter your PIN to receive.",
+        "output": {
+          "state": "likely",
+          "scamType": "UPI_COLLECT",
+          "tactics": ["urgency", "payment_switch"],
+          "redFlags": ["Entering a UPI PIN sends money, never receives it", "Unexpected prize / cashback"],
+          "sayHi": "Paisa lene ke liye kabhi UPI PIN nahi dala jata. Request cancel karein.",
+          "sayEn": "You never enter a UPI PIN to receive money. Decline the request."
+        }
+      }
+    },
+    {
+      "id": "task_job",
+      "scamType": "FAKE_JOB",
+      "label": {"en": "Task / part-time job with a deposit", "hi": "टास्क / पार्ट-टाइम नौकरी, डिपॉज़िट माँगते हैं"},
+      "tactics": ["urgency", "payment_switch"],
+      "redFlags": [
+        "'Earn daily by liking videos / rating hotels', first tasks pay, then a 'deposit' unlocks premium tasks",
+        "Telegram/WhatsApp-only 'HR' or 'manager'",
+        "Unrealistic daily earnings, pressure to top up to withdraw"
+      ],
+      "advisory": {
+        "source": {
+          "outlet": "I4C advisory TAU/ADV/003 (cybercrime.gov.in)",
+          "date": "6 Mar 2025",
+          "url": "https://cybercrime.gov.in/Webform/theme/resources/advisories/ADVISORYTAU-ADV-003DigitalArrest06.03.2025.pdf"
+        },
+        "quote": "Speak to your relatives and friends before taking any action to transfer money.",
+        "caveat": "I4C advisory, 6 Mar 2025"
+      },
+      "example": {
+        "input": "Hi, I am HR from Amazon part time. Earn 3000-8000 daily by liking YouTube videos. First task free, then small deposit of 2000 for premium tasks. Join telegram t.me/amz_tasks_hr",
+        "output": {
+          "state": "likely",
+          "scamType": "FAKE_JOB",
+          "tactics": ["urgency", "payment_switch"],
+          "redFlags": ["Pay-to-work 'deposit' for tasks", "Telegram-only 'HR'", "Unrealistic daily earnings"],
+          "sayHi": "Asli naukri me pehle paisa nahi maanga jata. Deposit na bhejein.",
+          "sayEn": "A genuine job never asks you to deposit money first. Do not pay."
+        }
+      }
+    },
+    {
+      "id": "instant_loan_app",
+      "scamType": "FAKE_LOAN",
+      "label": {"en": "Instant loan app / processing fee", "hi": "इंस्टेंट लोन ऐप / प्रोसेसिंग फ़ीस"},
+      "tactics": ["urgency", "payment_switch"],
+      "redFlags": [
+        "Loan 'approved' without documents, but a processing fee or GST must be paid first",
+        "APK link outside the Play Store, asks for contacts and photos",
+        "Threats and morphed photos sent to your contacts if you do not pay"
+      ],
+      "advisory": {
+        "source": {
+          "outlet": "I4C advisory TAU/ADV/003 (cybercrime.gov.in)",
+          "date": "6 Mar 2025",
+          "url": "https://cybercrime.gov.in/Webform/theme/resources/advisories/ADVISORYTAU-ADV-003DigitalArrest06.03.2025.pdf"
+        },
+        "quote": "Never share personal or financial information over the phone, email, or messaging apps without verifying the request.",
+        "caveat": "I4C advisory, 6 Mar 2025"
+      },
+      "example": {
+        "input": "Congratulations! Your loan of Rs 2,00,000 is pre-approved with no documents. Pay Rs 1,999 processing fee to this UPI id to release the amount today. Download app: bit.ly/fastcash-apk",
+        "output": {
+          "state": "likely",
+          "scamType": "FAKE_LOAN",
+          "tactics": ["urgency", "payment_switch"],
+          "redFlags": ["Loan 'approved' with no documents", "Fee to be paid before disbursal", "APK from a short link, not the Play Store"],
+          "sayHi": "Asli loan me pehle fee nahi li jati. Kuch na bhejein, app install na karein.",
+          "sayEn": "No genuine lender takes a fee before paying out. Send nothing and do not install the app."
+        }
+      }
+    },
+    {
+      "id": "investment_deepfake",
+      "scamType": "INVESTMENT_DEEPFAKE",
+      "label": {"en": "Investment group / deepfake celebrity tip", "hi": "निवेश ग्रुप / डीपफ़ेक सेलिब्रिटी टिप"},
+      "tactics": ["urgency", "payment_switch"],
+      "redFlags": [
+        "WhatsApp/Telegram 'trading group' with screenshots of huge returns",
+        "Video of a known businessman or anchor promoting a scheme (deepfake)",
+        "Money goes to individual accounts or an app that will not let you withdraw without paying 'tax'"
+      ],
+      "advisory": {
+        "source": {
+          "outlet": "I4C advisory TAU/ADV/003 (cybercrime.gov.in)",
+          "date": "6 Mar 2025",
+          "url": "https://cybercrime.gov.in/Webform/theme/resources/advisories/ADVISORYTAU-ADV-003DigitalArrest06.03.2025.pdf"
+        },
+        "quote": "Speak to your relatives and friends before taking any action to transfer money.",
+        "caveat": "I4C advisory, 6 Mar 2025"
+      },
+      "example": {
+        "input": "Join our VIP stock group, mentor Mr Jhunjhunwala guarantees 30% monthly. Members already withdrew 12 lakh this week (see screenshots). Transfer to the group account before market opens, limited seats.",
+        "output": {
+          "state": "likely",
+          "scamType": "INVESTMENT_DEEPFAKE",
+          "tactics": ["urgency", "payment_switch"],
+          "redFlags": ["'Guaranteed' 30% monthly returns", "Money to a personal 'group account'", "Pressure with limited seats and screenshots"],
+          "sayHi": "Guarantee wale return dhokha hote hain. Sirf SEBI-registered app ya broker se hi nivesh karein, parivaar se poochhein.",
+          "sayEn": "Guaranteed returns are a scam sign. Invest only through a SEBI-registered broker and ask your family first."
+        }
+      }
+    },
+    {
+      "id": "otp_theft",
+      "scamType": "OTP_THEFT",
+      "label": {"en": "OTP / screen-share theft", "hi": "OTP / स्क्रीन-शेयर से चोरी"},
+      "tactics": ["authority", "urgency"],
+      "redFlags": [
+        "'Bank', 'Paytm' or 'card company' calls and asks you to read out an OTP or card details",
+        "Asks you to install AnyDesk / TeamViewer / a 'support' app and share the screen",
+        "Reward points or a blocked card that 'expires today'"
+      ],
+      "advisory": {
+        "source": {
+          "outlet": "I4C advisory TAU/ADV/003 (cybercrime.gov.in)",
+          "date": "6 Mar 2025",
+          "url": "https://cybercrime.gov.in/Webform/theme/resources/advisories/ADVISORYTAU-ADV-003DigitalArrest06.03.2025.pdf"
+        },
+        "quote": "Never share personal or financial information over the phone, email, or messaging apps without verifying the request.",
+        "caveat": "I4C advisory, 6 Mar 2025"
+      },
+      "example": {
+        "input": "Sir, HDFC card department se bol raha hoon. Aapke 4,500 reward points aaj expire ho rahe hain. Redeem karne ke liye abhi jo OTP aaya hai woh bata dijiye.",
+        "output": {
+          "state": "likely",
+          "scamType": "OTP_THEFT",
+          "tactics": ["authority", "urgency"],
+          "redFlags": ["'Card department' asks for an OTP", "Reward points expiring today", "Nothing a bank would ever ask on a call"],
+          "sayHi": "OTP kisi ko nahi batana, bank ko bhi nahi. Phone kaat dein.",
+          "sayEn": "Never read out an OTP to anyone, not even the bank. Hang up."
+        }
+      }
+    },
+    {
+      "id": "refund_scam",
+      "scamType": "REFUND_SCAM",
+      "label": {"en": "Fake refund / 'MHA recovery' after a loss", "hi": "नकली रिफ़ंड / नुकसान के बाद 'MHA रिकवरी'"},
+      "tactics": ["authority", "urgency", "payment_switch"],
+      "redFlags": [
+        "After a fraud, someone from 'cyber cell', 'MHA' or a 'recovery agency' promises to get the money back",
+        "A 'processing charge', 'court fee' or 'GST' must be paid first",
+        "Real refunds come only through the MRM portal after a 1930/NCRP complaint, never against a fee"
+      ],
+      "advisory": {
+        "source": {
+          "outlet": "National Cyber Crime Reporting Portal (cybercrime.gov.in)",
+          "date": null,
+          "url": "https://cybercrime.gov.in/"
+        },
+        "quote": "Fake mails are being sent impersonating officials of Indian Cyber Crime Coordination Centre - CEO I4C, Intelligence Bureau and Delhi Police. The claim is FAKE.",
+        "caveat": "Alert on the NCRP home page"
+      },
+      "example": {
+        "input": "Good news from Ministry of Home Affairs cyber cell. Your lost Rs 1,80,000 has been recovered from the fraudster. To release the refund, pay 5% processing charge (Rs 9,000) to this account today.",
+        "output": {
+          "state": "likely",
+          "scamType": "REFUND_SCAM",
+          "tactics": ["authority", "urgency", "payment_switch"],
+          "redFlags": ["'MHA cyber cell' promising a recovered refund", "Fee to release the refund", "Refund pushed through a personal account"],
+          "sayHi": "Asli refund sirf 1930/NCRP ke MRM portal se aata hai, bina kisi fee ke. Kuch na bhejein.",
+          "sayEn": "Real refunds come only through the MRM portal after a 1930/NCRP complaint and never need a fee. Send nothing."
+        }
+      }
+    },
+    {
+      "id": "electricity_disconnection",
+      "scamType": "OTHER",
+      "label": {"en": "Electricity / gas 'disconnection tonight'", "hi": "बिजली / गैस 'आज रात कनेक्शन कटेगा'"},
+      "tactics": ["authority", "urgency", "payment_switch"],
+      "redFlags": [
+        "SMS from a personal number: 'your electricity will be disconnected tonight, bill not updated'",
+        "Asks you to call a mobile number or pay through an app link, not the discom's own app",
+        "A 'small update charge' of Rs 10 to 'verify' the account"
+      ],
+      "advisory": {
+        "source": {
+          "outlet": "Sanchar Saathi (Department of Telecommunications)",
+          "date": null,
+          "url": "https://sancharsaathi.gov.in/"
+        },
+        "quote": "Chakshu facilitates citizens to report UCC or spam",
+        "caveat": "Report the number on Chakshu (Sanchar Saathi) and pay bills only through the discom's own app"
+      },
+      "example": {
+        "input": "Dear consumer your electricity power will be disconnected tonight at 9.30 pm from electricity office because your previous month bill was not updated. Please immediately contact electricity officer 98XXXXXX21. Thank you.",
+        "output": {
+          "state": "likely",
+          "scamType": "OTHER",
+          "tactics": ["authority", "urgency", "payment_switch"],
+          "redFlags": ["'Disconnected tonight' from a personal number", "Asks to call a mobile number, not the discom", "Bill 'not updated' is a common lure"],
+          "sayHi": "Bijli company aise personal number se SMS nahi bhejti. Apne bill app ya office se hi check karein.",
+          "sayEn": "Electricity boards do not send disconnection threats from personal numbers. Check only in the official app."
+        }
+      }
+    }
+  ],
+  "extraExamples": [
+    {
+      "input": "HDFC Bank: Your KYC is due for periodic update. Please visit your nearest branch with valid ID or log in at https://www.hdfcbank.bank.in. Do not share OTP or password with anyone.",
+      "output": {
+        "state": "none",
+        "scamType": "NONE",
+        "tactics": [],
+        "redFlags": [],
+        "sayHi": "Koi khatra nahi mila — phir bhi parivaar se poochhein.",
+        "sayEn": "Nothing here asks for money, an OTP or a rushed action. Still confirm with your family or branch."
+      }
+    },
+    {
+      "input": "Your Flipkart order OTP is 4471. Share it only with the delivery agent at your door.",
+      "output": {
+        "state": "none",
+        "scamType": "NONE",
+        "tactics": [],
+        "redFlags": [],
+        "sayHi": "Koi khatra nahi mila — phir bhi parivaar se poochhein.",
+        "sayEn": "A delivery OTP is normal when you are expecting a parcel. Give it only at your door."
+      }
+    },
+    {
+      "input": "Good afternoon sir. I am calling from the Cyber Cell, Mumbai. A SIM in your name has been used in a small matter and we would like to help you clear your name. Whenever convenient, please keep this between us and we can complete a simple verification through a secure account. No hurry at all.",
+      "output": {
+        "state": "likely",
+        "scamType": "DIGITAL_ARREST",
+        "tactics": ["authority", "secrecy", "verification_account"],
+        "redFlags": ["'Cyber Cell' asking to keep it private", "'Clear your name' via a 'secure account'", "Polite tone but same hook: authority plus secret transfer"],
+        "sayHi": "Police ya cyber cell 'secure account' me paisa nahi mangwate. Phone kaat dein, 1930 par call karein.",
+        "sayEn": "No police unit asks for money into a 'secure account', however politely. Hang up and call 1930."
+      }
+    },
+    {
+      "input": "Namaste uncle, main Sharma ji ka beta Rohit, Dubai se. Mera purana number band ho gaya, yeh naya hai save kar lo. Kal ek chhota sa kaam tha aapse, baad me baat karte hain.",
+      "output": {
+        "state": "watching",
+        "scamType": "OTHER",
+        "tactics": [],
+        "redFlags": ["Unknown number claiming to be a family friend's son", "'New number, save it' is how many frauds begin", "No money asked yet, so wait and verify"],
+        "sayHi": "Abhi paisa nahi manga, par number nahi pehchana. Sharma ji ko khud call karke poochhein ki Rohit ka number badla hai ya nahi.",
+        "sayEn": "No money asked yet, but the number is unknown. Call Sharma ji yourself and ask whether Rohit really changed his number."
+      }
+    }
+  ]
+}

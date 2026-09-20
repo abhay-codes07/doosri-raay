@@ -8,7 +8,9 @@ string lengths, HTML stripped. Anything invalid degrades to
 from __future__ import annotations
 
 import html
+import json
 import logging
+import os
 import re
 from typing import Any, Dict, List, Optional
 
@@ -53,76 +55,64 @@ TOOL_SCHEMA: Dict[str, Any] = {
     "required": ["state", "scamType", "tactics", "redFlags", "sayHi", "sayEn"],
 }
 
-FEW_SHOT = [
-    {
-        "input": "Main CBI officer Rajesh Verma bol raha hoon. Aapke Aadhaar se ek money laundering case juda hai. "
-                 "Aap digital arrest me hain, video call se hatna mat, kisi ko batana mat. Case band karne ke liye "
-                 "RBI verification account me 2 lakh transfer karo abhi.",
-        "output": {"state": "likely", "scamType": "DIGITAL_ARREST",
-                   "tactics": ["authority", "urgency", "secrecy", "verification_account"],
-                   "redFlags": ["Claims to be CBI on a video call", "Says you are under 'digital arrest'",
-                                "Tells you to keep it secret", "Asks for transfer to a 'verification account'"],
-                   "sayHi": "Police ya CBI kabhi video call par giraftaar nahi karte. Phone kaat dein, paisa na bhejein, 1930 par call karein.",
-                   "sayEn": "No police or court arrests anyone on a video call. Hang up, send nothing, call 1930."},
-    },
-    {
-        "input": "Dear customer your SBI account will be blocked today. Update KYC now http://sbi-kyc-update.xyz/verify "
-                 "or lose access. Share OTP to complete.",
-        "output": {"state": "likely", "scamType": "KYC_PHISHING", "tactics": ["urgency", "authority"],
-                   "redFlags": ["Non-bank link (.xyz), not a bank.in domain", "Threatens account block today",
-                                "Asks you to share an OTP"],
-                   "sayHi": "Bank kabhi OTP ya link se KYC nahi karwata. Link na kholein, apni branch jaakar poochhein.",
-                   "sayEn": "Banks never do KYC through an OTP or a link like this. Do not open it; ask your branch."},
-    },
-    {
-        "input": "FedEx: Aapka parcel Mumbai customs me pakda gaya hai, usme drugs aur 4 passports mile hain. "
-                 "Narcotics dept se baat karne ke liye 9 dabayein. Case clear karne ke liye fine online bharein.",
-        "output": {"state": "likely", "scamType": "COURIER_CUSTOMS", "tactics": ["authority", "urgency", "payment_switch"],
-                   "redFlags": ["Courier 'customs' parcel with drugs story", "Press 9 to talk to 'narcotics'",
-                                "Fine to be paid online to clear the case"],
-                   "sayHi": "Customs ya courier aise fine phone par nahi lete. Phone kaat dein aur parivaar se poochhein.",
-                   "sayEn": "Customs and couriers do not collect fines over the phone. Hang up and ask your family."},
-    },
-    {
-        "input": "Congrats! You won Rs 5,000 cashback. Accept this UPI collect request and enter your PIN to receive.",
-        "output": {"state": "likely", "scamType": "UPI_COLLECT", "tactics": ["urgency", "payment_switch"],
-                   "redFlags": ["Entering a UPI PIN sends money, never receives it", "Unexpected prize / cashback"],
-                   "sayHi": "Paisa lene ke liye kabhi UPI PIN nahi dala jata. Request cancel karein.",
-                   "sayEn": "You never enter a UPI PIN to receive money. Decline the request."},
-    },
-    {
-        "input": "Hi, I am HR from Amazon part time. Earn 3000-8000 daily by liking YouTube videos. "
-                 "First task free, then small deposit of 2000 for premium tasks. Join telegram t.me/amz_tasks_hr",
-        "output": {"state": "likely", "scamType": "FAKE_JOB", "tactics": ["urgency", "payment_switch"],
-                   "redFlags": ["Pay-to-work 'deposit' for tasks", "Telegram-only 'HR'", "Unrealistic daily earnings"],
-                   "sayHi": "Asli naukri me pehle paisa nahi maanga jata. Deposit na bhejein.",
-                   "sayEn": "A genuine job never asks you to deposit money first. Do not pay."},
-    },
-    {
-        "input": "HDFC Bank: Your KYC is due for periodic update. Please visit your nearest branch with valid ID "
-                 "or log in at https://www.hdfcbank.bank.in. Do not share OTP or password with anyone.",
-        "output": {"state": "none", "scamType": "NONE", "tactics": [],
-                   "redFlags": [],
-                   "sayHi": texts.NONE_COPY_HI_ROMAN,
-                   "sayEn": "Nothing here asks for money, an OTP or a rushed action. Still confirm with your family or branch."},
-    },
-    {
-        "input": "Your Flipkart order OTP is 4471. Share it only with the delivery agent at your door.",
-        "output": {"state": "none", "scamType": "NONE", "tactics": [], "redFlags": [],
-                   "sayHi": texts.NONE_COPY_HI_ROMAN,
-                   "sayEn": "A delivery OTP is normal when you are expecting a parcel. Give it only at your door."},
-    },
-    {
-        "input": "Good afternoon sir. I am calling from the Cyber Cell, Mumbai. A SIM in your name has been used in a "
-                 "small matter and we would like to help you clear your name. Whenever convenient, please keep this "
-                 "between us and we can complete a simple verification through a secure account. No hurry at all.",
-        "output": {"state": "likely", "scamType": "DIGITAL_ARREST", "tactics": ["authority", "secrecy", "verification_account"],
-                   "redFlags": ["'Cyber Cell' asking to keep it private", "'Clear your name' via a 'secure account'",
-                                "Polite tone but same hook: authority plus secret transfer"],
-                   "sayHi": "Police ya cyber cell 'secure account' me paisa nahi mangwate. Phone kaat dein, 1930 par call karein.",
-                   "sayEn": "No police unit asks for money into a 'secure account', however politely. Hang up and call 1930."},
-    },
-]
+PATTERNS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "patterns.json")
+
+
+def load_patterns(path: Optional[str] = None) -> Dict[str, Any]:
+    with open(path or PATTERNS_PATH, "r", encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+PATTERNS: Dict[str, Any] = load_patterns()
+PATTERN_LIST: List[Dict[str, Any]] = list(PATTERNS.get("patterns", []))
+# Few-shots come from the catalogue (one example per pretext) plus the benign / softened /
+# "watching" extras, in the order the JSON lists them: the model sees the same catalogue the
+# explanation lines are drawn from.
+FEW_SHOT: List[Dict[str, Any]] = [p["example"] for p in PATTERN_LIST if p.get("example")] + list(
+    PATTERNS.get("extraExamples", []))
+MAX_EXPLANATIONS = 3
+MAX_TOKENS = 1024
+
+
+def lookup_patterns(scam_type: Optional[str], tactics: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+    """Catalogue entries for a verdict: those with the same scamType (catalogue order), and when
+    none matches, entries sharing at least two of the verdict's tactics."""
+    if not scam_type or scam_type in ("NONE",):
+        return []
+    same = [p for p in PATTERN_LIST if p.get("scamType") == scam_type and scam_type != "OTHER"]
+    if same:
+        return same
+    wanted = set(tactics or [])
+    if len(wanted) < 2:
+        return []
+    return [p for p in PATTERN_LIST if len(wanted & set(p.get("tactics", []))) >= 2]
+
+
+def explain(scam_type: Optional[str], tactics: Optional[List[str]] = None, state: str = "likely") -> Dict[str, Any]:
+    """Explanation lines for the family, each backed by an official quote: the matched pattern's
+    advisory sentence, the general 'ask the family' line, and where to report."""
+    lines: List[Dict[str, Any]] = []
+    matched = lookup_patterns(scam_type, tactics) if state != "none" else []
+    for pattern in matched[:1]:
+        adv = pattern.get("advisory") or {}
+        lines.append({
+            "patternId": pattern["id"],
+            "label": dict(pattern.get("label") or {}),
+            "quote": adv.get("quote"),
+            "source": dict(adv.get("source") or {}),
+            "caveat": adv.get("caveat"),
+        })
+    for key in ("generalAdvice", "reportAdvice"):
+        entry = PATTERNS.get(key) or {}
+        if entry.get("quote") and len(lines) < MAX_EXPLANATIONS:
+            lines.append({"patternId": None, "label": dict(entry.get("label") or {}), "quote": entry["quote"],
+                          "source": dict(entry.get("source") or {}), "caveat": entry.get("caveat")})
+    return {
+        "patternId": matched[0]["id"] if matched else None,
+        "patternLabel": dict(matched[0].get("label") or {}) if matched else None,
+        "patternRedFlags": list(matched[0].get("redFlags") or []) if matched else [],
+        "explanations": lines[:MAX_EXPLANATIONS],
+    }
 
 
 def _few_shot_text() -> str:
@@ -261,11 +251,14 @@ def classify(
     requested = model_id or config.model_id()
     try:
         result = bedrock.converse_structured_ex(
-            client, requested, SYSTEM_PROMPT, blocks, TOOL_NAME, TOOL_SCHEMA, max_tokens=600
+            client, requested, SYSTEM_PROMPT, blocks, TOOL_NAME, TOOL_SCHEMA, max_tokens=MAX_TOKENS
         )
     except bedrock.BedrockOutputError as exc:
         log.warning("model output unusable: %s", exc)
-        return invalid_verdict(requested)
+        verdict = invalid_verdict(requested)
+        verdict.update(explain(None, [], "watching"))
+        return verdict
     verdict = validate_verdict(result.data, result.model_id)
+    verdict.update(explain(verdict["scamType"], verdict["tactics"], verdict["state"]))
     log.info("verdict state=%s type=%s model=%s", verdict["state"], verdict["scamType"], verdict["modelId"])
     return verdict

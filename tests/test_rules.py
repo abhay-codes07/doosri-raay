@@ -124,7 +124,7 @@ def test_mrm_and_ncrp_sources():
     assert mrm["source"]["outlet"] == "Deccan Chronicle" and "deccanchronicle.com" in mrm["source"]["url"]
     assert [s["outlet"] for s in mrm["sources"]] == ["Deccan Chronicle", "Free Press Journal"]
     assert "freepressjournal.in" in mrm["sources"][1]["url"]
-    assert mrm["caveat"] == "Reported by Deccan Chronicle; confirm with 1930 before relying on it"
+    assert mrm["caveat"] == "Reported by Deccan Chronicle on 8 Jun 2026; confirm with 1930 before relying on it"
     assert mrm["portal"] == "https://mrm-ncrp.mha.gov.in"
     assert "indemnity bond" in rules.mrm_eligibility([{**GOOD, "amount": 50000}])["rule"]
     ncrp = rules.ncrp_facts()
@@ -132,7 +132,7 @@ def test_mrm_and_ncrp_sources():
                              "idUploadRequired": True, "ackDigits": 14, "ackPrefix": "329"}
     assert ncrp["source"]["url"] == "https://cybercrime.gov.in/Webform/Crime_AuthoLogin.aspx"
     assert ncrp["ackSource"]["outlet"] == "The Hindu (Chennai)" and "thehindu.com" in ncrp["ackSource"]["url"]
-    assert ncrp["caveat"].startswith("Reported by The Hindu (Chennai); confirm with 1930")
+    assert ncrp["caveat"] == "Reported by The Hindu (Chennai) on 15 Aug 2025; confirm with 1930 before relying on it"
     for src in (mrm["source"], ncrp["source"], ncrp["ackSource"]):
         assert set(src) == {"outlet", "date", "url"}
 

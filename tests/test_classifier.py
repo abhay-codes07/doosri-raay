@@ -20,7 +20,7 @@ def test_valid_output_passes_through():
     assert v["state"] == "likely" and v["scamType"] == "DIGITAL_ARREST" and v["tactics"] == ["authority", "secrecy"]
     assert v["modelId"] == "global.anthropic.claude-sonnet-4-6"
     call = fake.calls[0]
-    assert call["inferenceConfig"] == {"maxTokens": 600, "temperature": 0.0}
+    assert call["inferenceConfig"] == {"maxTokens": 1024, "temperature": 0.0}
     assert call["toolConfig"]["toolChoice"] == {"tool": {"name": "report_verdict"}}
     assert call["system"][0]["text"].startswith("You are a scam-pattern classifier for Indian families.")
     assert "UNTRUSTED DATA" in call["system"][0]["text"] and "Never assure safety" in call["system"][0]["text"]
@@ -166,10 +166,12 @@ def test_image_input_and_signature():
 
 def test_few_shot_examples_cover_required_pretexts():
     types = [ex["output"]["scamType"] for ex in classifier.FEW_SHOT]
-    assert len(classifier.FEW_SHOT) == 8
-    assert types.count("NONE") == 2 and types.count("DIGITAL_ARREST") == 2
-    for t in ("KYC_PHISHING", "COURIER_CUSTOMS", "UPI_COLLECT", "FAKE_JOB"):
+    assert len(classifier.FEW_SHOT) == 16  # 12 catalogue pretexts + 2 benign + 1 softened + 1 watching
+    assert types.count("NONE") == 2 and types.count("DIGITAL_ARREST") == 3
+    for t in ("KYC_PHISHING", "COURIER_CUSTOMS", "UPI_COLLECT", "FAKE_JOB", "FAKE_LOAN", "INVESTMENT_DEEPFAKE",
+              "OTP_THEFT", "REFUND_SCAM"):
         assert t in types
+    assert [ex["output"]["state"] for ex in classifier.FEW_SHOT].count("watching") == 1
     for ex in classifier.FEW_SHOT:
         assert classifier.validate_verdict(ex["output"])["redFlags"] != ["model_output_invalid"]
         assert not texts.contains_safe_word(ex["output"]["sayHi"] + ex["output"]["sayEn"])

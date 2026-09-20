@@ -1,0 +1,195 @@
+{
+  "version": "2026-09-20",
+  "note": "Rules as data. Every legal or operational fact the recovery agent uses lives here, never in Python. Each entry carries operator/value where a number is compared, a bilingual label, the source {outlet, date, url}, the sentence as reported (quote; checked against the live page by scripts/verify_sources.py) and a caveat. Press reports are never presented as law.",
+  "caveatSuffix": "confirm with 1930 before relying on it",
+  "ezeroFir": {
+    "states": {
+      "haryana": {
+        "operator": ">=",
+        "value": 100000,
+        "label": {
+          "en": "Haryana: e-Zero FIR for cyber financial fraud of Rs 1 lakh or more reported through 1930",
+          "hi": "हरियाणा: 1930 पर दर्ज 1 लाख रुपये या उससे अधिक की साइबर वित्तीय धोखाधड़ी पर e-Zero FIR"
+        },
+        "source": {
+          "outlet": "Hindustan Times",
+          "date": "25 Jun 2026",
+          "url": "https://www.hindustantimes.com/cities/chandigarh-news/haryana-to-lodge-e-zero-fir-in-cyber-financial-fraud-cases-101782412687221.html"
+        },
+        "quote": "if a victim of cyber financial fraud involving ₹ 1 lakh or more reports the matter through helpline 1930, the helpline police team will fill e-zero FIR form based on the information provided by the complainant",
+        "caveat": "Reported by Hindustan Times on 25 Jun 2026; confirm with 1930 before relying on it"
+      },
+      "rajasthan": {
+        "operator": ">=",
+        "value": 100000,
+        "label": {
+          "en": "Rajasthan: automatic e-Zero FIR for cyber financial fraud of Rs 1 lakh or more",
+          "hi": "राजस्थान: 1 लाख रुपये या उससे अधिक की साइबर वित्तीय धोखाधड़ी पर स्वतः e-Zero FIR"
+        },
+        "source": {
+          "outlet": "Times of India",
+          "date": "23 Jul 2026",
+          "url": "https://timesofindia.indiatimes.com/city/jaipur/cyber-fraud-of-rs-1l-or-more-to-trigger-automatic-e-zero-fir-in-state/amp_articleshow/132591321.cms"
+        },
+        "quote": "Victims of cyber financial fraud involving Rs 1 lakh or more in Rajasthan will now have an e-Zero FIR registered automatically immediately after reporting of the crime",
+        "caveat": "Reported by Times of India on 23 Jul 2026; confirm with 1930 before relying on it"
+      },
+      "punjab": {
+        "operator": ">",
+        "value": 500000,
+        "label": {
+          "en": "Punjab: e-Zero FIR for cyber financial fraud above Rs 5 lakh",
+          "hi": "पंजाब: 5 लाख रुपये से अधिक की साइबर वित्तीय धोखाधड़ी पर e-Zero FIR"
+        },
+        "source": {
+          "outlet": "New Indian Express",
+          "date": "29 Jul 2026",
+          "url": "https://www.newindianexpress.com/india/2026/Jul/29/punjab-police-launches-e-zero-fir-mechanism-for-swift-action-in-cyber-fraud-cases"
+        },
+        "quote": "Punjab Police has launched the e-Zero FIR mechanism for cyber financial fraud cases involving fraudulent transactions above Rs 5 lakh",
+        "caveat": "Reported by New Indian Express on 29 Jul 2026; confirm with 1930 before relying on it"
+      }
+    },
+    "scDirection": {
+      "label": {
+        "en": "Supreme Court directed all States/UTs to adopt e-Zero FIR (13-point directions, 4 Aug 2026)",
+        "hi": "सर्वोच्च न्यायालय ने सभी राज्यों/केंद्र-शासित प्रदेशों को e-Zero FIR अपनाने का निर्देश दिया (13 सूत्रीय निर्देश, 4 अगस्त 2026)"
+      },
+      "source": {
+        "outlet": "New Indian Express",
+        "date": "4 Aug 2026",
+        "url": "https://www.newindianexpress.com/india/2026/Aug/04/sc-issues-13-point-directions-to-fight-digital-arrest-scams"
+      },
+      "quote": "the remaining States which have not yet done so are directed to notify and operationalise their State Cyber Crime Coordination Centres within four weeks; and take steps to adopt the e-Zero FIR mechanism, in consultation with I4C",
+      "caveat": "Reported by New Indian Express on 4 Aug 2026; confirm with 1930 before relying on it"
+    },
+    "defaultNote": {
+      "en": "Check with 1930; SC ordered all states to adopt e-Zero FIR (Aug 2026)",
+      "hi": "1930 से पुष्टि करें; सर्वोच्च न्यायालय ने सभी राज्यों को e-Zero FIR अपनाने का आदेश दिया (अगस्त 2026)"
+    }
+  },
+  "mrm": {
+    "portal": "https://mrm-ncrp.mha.gov.in",
+    "noFirUpTo": {
+      "operator": "<=",
+      "value": 50000,
+      "label": {
+        "en": "Up to Rs 50,000 frozen in a single account: refund on a police report and indemnity bond, no FIR or court order",
+        "hi": "एक खाते में 50,000 रुपये तक रुकी राशि: पुलिस रिपोर्ट और क्षतिपूर्ति बॉन्ड पर रिफ़ंड, FIR या कोर्ट आदेश नहीं"
+      },
+      "source": {
+        "outlet": "Deccan Chronicle",
+        "date": "8 Jun 2026",
+        "url": "https://www.deccanchronicle.com/southern-states/telangana/cybercrime-victims-to-get-refunds-online-1962253"
+      },
+      "quote": "refunds up to ₹50,000 frozen in a single account can be processed without an FIR or court order, based on a police report and indemnity bond submitted online",
+      "caveat": "Reported by Deccan Chronicle on 8 Jun 2026; confirm with 1930 before relying on it"
+    },
+    "firMandatoryAbove": {
+      "operator": ">",
+      "value": 50000,
+      "label": {
+        "en": "More than Rs 50,000 in a single account: an FIR is mandatory",
+        "hi": "एक खाते में 50,000 रुपये से अधिक: FIR अनिवार्य"
+      },
+      "source": {
+        "outlet": "Free Press Journal",
+        "date": "21 Aug 2026",
+        "url": "https://www.freepressjournal.in/mumbai/relief-for-cyber-scam-victims-mha-launches-online-money-restoration-module-to-recover-frozen-funds"
+      },
+      "quote": "If the held amount exceeds Rs50,000 in a single bank account, lodging an FIR is mandatory under the rules.",
+      "caveat": "Reported by Free Press Journal on 21 Aug 2026; confirm with 1930 before relying on it"
+    },
+    "ackRequired": {
+      "label": {
+        "en": "MRM is only for complaints registered promptly on 1930/NCRP with a 14-digit acknowledgement number, and only for money still frozen",
+        "hi": "MRM केवल 1930/NCRP पर तुरंत दर्ज शिकायतों (14 अंकों का पावती नंबर) और रुकी हुई राशि के लिए है"
+      },
+      "source": {
+        "outlet": "Free Press Journal",
+        "date": "21 Aug 2026",
+        "url": "https://www.freepressjournal.in/mumbai/relief-for-cyber-scam-victims-mha-launches-online-money-restoration-module-to-recover-frozen-funds"
+      },
+      "quote": "the portal (MRM) is strictly for victims who registered their complaint immediately via the 1930 Helpline or the NCRP portal and possess a 14-digit Registered Acknowledgement Number",
+      "caveat": "Reported by Free Press Journal on 21 Aug 2026; confirm with 1930 before relying on it"
+    },
+    "checklist": [
+      "PAN card of the victim",
+      "Bank account details of the victim (account number, IFSC, cancelled cheque or passbook)",
+      "NCRP acknowledgement number",
+      "Indemnity bond (as per the MRM portal format)",
+      "Transaction proof (UTR, screenshots, bank statement)"
+    ],
+    "checklistFir": "FIR copy (mandatory: more than Rs 50,000 in a single account)",
+    "checklistNoFir": "No FIR needed (Rs 50,000 or less in a single account); police report and indemnity bond are enough"
+  },
+  "ncrp": {
+    "portal": "https://cybercrime.gov.in",
+    "narrativeMinChars": {
+      "operator": ">=",
+      "value": 200,
+      "label": {
+        "en": "Incident details: minimum 200 characters, no special characters",
+        "hi": "घटना का विवरण: कम से कम 200 अक्षर, विशेष चिह्न नहीं"
+      },
+      "source": {
+        "outlet": "National Cyber Crime Reporting Portal (cybercrime.gov.in)",
+        "date": null,
+        "url": "https://cybercrime.gov.in/Webform/Crime_AuthoLogin.aspx"
+      },
+      "quote": "Incident details (minimum 200 characters) without any special characters",
+      "caveat": "Reported by National Cyber Crime Reporting Portal (cybercrime.gov.in); confirm with 1930 before relying on it"
+    },
+    "transactionIdDigits": {
+      "operator": "==",
+      "value": 12,
+      "label": {
+        "en": "Financial fraud: 12-digit transaction id / UTR number, date and amount per transaction",
+        "hi": "वित्तीय धोखाधड़ी: हर लेन-देन का 12 अंकों का ट्रांज़ैक्शन आईडी/UTR, तारीख और राशि"
+      },
+      "source": {
+        "outlet": "National Cyber Crime Reporting Portal (cybercrime.gov.in)",
+        "date": null,
+        "url": "https://cybercrime.gov.in/Webform/Crime_AuthoLogin.aspx"
+      },
+      "quote": "12-digit Transaction id/UTR No.",
+      "caveat": "Reported by National Cyber Crime Reporting Portal (cybercrime.gov.in); confirm with 1930 before relying on it"
+    },
+    "idUploadRequired": {
+      "operator": "==",
+      "value": true,
+      "label": {
+        "en": "A soft copy of a national ID of the complainant is mandatory",
+        "hi": "शिकायतकर्ता के राष्ट्रीय पहचान-पत्र की सॉफ्ट कॉपी अनिवार्य"
+      },
+      "source": {
+        "outlet": "National Cyber Crime Reporting Portal (cybercrime.gov.in)",
+        "date": null,
+        "url": "https://cybercrime.gov.in/Webform/Crime_AuthoLogin.aspx"
+      },
+      "quote": "Soft copy of any national Id ( Voter Id, Driving license, Passport, PAN Card, Aadhaar Card) of complainant",
+      "caveat": "Reported by National Cyber Crime Reporting Portal (cybercrime.gov.in); confirm with 1930 before relying on it"
+    },
+    "ackNumber": {
+      "operator": "==",
+      "value": 14,
+      "prefix": "329",
+      "label": {
+        "en": "A 1930 complaint returns a 14-digit acknowledgement number starting with 329",
+        "hi": "1930 पर शिकायत का 14 अंकों का पावती नंबर 329 से शुरू होता है"
+      },
+      "source": {
+        "outlet": "The Hindu (Chennai)",
+        "date": "15 Aug 2025",
+        "url": "https://www.thehindu.com/news/cities/chennai/how-to-lodge-a-cybercrime-complaint/article69923101.ece"
+      },
+      "quote": "the victim receives a message with a 14-digit acknowledgement number starting with “329”",
+      "caveat": "Reported by The Hindu (Chennai) on 15 Aug 2025; confirm with 1930 before relying on it",
+      "warning": "Ack numbers reported in the press start with 329; double-check"
+    }
+  },
+  "narrative": {
+    "maxChars": 1500,
+    "padSentence": "The complainant requests that the transactions be traced and the beneficiary accounts be frozen at the earliest so that the amount can be recovered."
+  }
+}
