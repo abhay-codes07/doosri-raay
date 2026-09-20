@@ -328,21 +328,28 @@ function MadadSection({ guardianName }: { guardianName?: string }) {
   useEffect(() => () => abortRef.current?.abort(), []);
 
   const askAuthority = async () => {
+    // iOS only allows audio that starts inside a user gesture: unlock the persistent element
+    // synchronously in the tap (play() on an empty src rejects, which is fine), then swap in the
+    // real URL once the API answers and play again on the now-unlocked element.
+    const el = audioRef.current;
+    if (el) {
+      el.muted = true;
+      el.play().catch(() => undefined);
+    }
     setPhase({ kind: 'authority_loading' });
     try {
       const data = await api.puchhoAuthority();
       setPhase({ kind: 'authority', data, audioFailed: false });
+      if (el && data.audioUrl) {
+        el.pause();
+        el.muted = false;
+        el.src = data.audioUrl;
+        el.play().catch(() => setPhase((p) => (p.kind === 'authority' ? { ...p, audioFailed: true } : p)));
+      }
     } catch (e) {
       setPhase({ kind: 'error', message: describeError(e, 'hi') });
     }
   };
-
-  useEffect(() => {
-    if (phase.kind !== 'authority' || !phase.data.audioUrl) return;
-    const el = audioRef.current;
-    if (!el) return;
-    el.play().catch(() => setPhase((p) => (p.kind === 'authority' ? { ...p, audioFailed: true } : p)));
-  }, [phase]);
 
   const askFamily = async () => {
     setPhase({ kind: 'family_asking' });
@@ -361,6 +368,7 @@ function MadadSection({ guardianName }: { guardianName?: string }) {
 
   const reset = () => {
     abortRef.current?.abort();
+    audioRef.current?.pause();
     setPhase({ kind: 'idle' });
   };
 
@@ -385,6 +393,9 @@ function MadadSection({ guardianName }: { guardianName?: string }) {
         <Bi k="madadSub" />
       </p>
 
+      {/* Persistent element (never remounted) so the gesture unlock above survives the fetch. */}
+      <audio ref={audioRef} controls preload="auto" hidden={phase.kind !== 'authority' || !phase.data.audioUrl} style={{ width: '100%' }} />
+
       {phase.kind === 'idle' && (
         <div className="stack">
           <button type="button" className="btn btn-big btn-block" onClick={askAuthority}>
@@ -400,7 +411,6 @@ function MadadSection({ guardianName }: { guardianName?: string }) {
 
       {phase.kind === 'authority' && (
         <div className="stack" aria-live="polite">
-          {phase.data.audioUrl && <audio ref={audioRef} src={phase.data.audioUrl} controls preload="auto" style={{ width: '100%' }} />}
           {phase.audioFailed && <p className="muted small">{t('puchhoAudioFail')}</p>}
           <p className="puchho-result">{phase.data.textHi}</p>
           {phase.data.textEn && (
