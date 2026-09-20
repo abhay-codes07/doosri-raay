@@ -1,9 +1,12 @@
 """GET /tasks, POST /tasks/{taskId}/complete.
 
-Completion order (fix 11): validate -> SendTaskSuccess FIRST -> conditional status open->done ->
-CASE bookkeeping. ``TaskTimedOut`` / ``TaskDoesNotExist`` / ``InvalidToken`` from Step Functions
-still mark the task done (the workflow moved on); any other Step Functions error returns 502 and
-leaves the task open so the guardian can retry. Completing an already-done task is a 200 no-op.
+Completion order: validate -> persist ``confirmedTxns`` / ``ackNo`` on the CASE (idempotent SET,
+so ``Build`` never reads an empty case) -> ``SendTaskSuccess`` -> conditional status open->done
+-> ``openTaskId`` cleared. ``TaskTimedOut`` means the workflow already moved past this task: it
+is closed as ``expired`` and the caller gets ``409 task_expired``. ``TaskDoesNotExist`` /
+``InvalidToken`` (execution stopped, e.g. by a check-in or a demo reset) still mark it done; any
+other Step Functions error returns 502 and leaves the task open. Completing an already-done task
+is a 200 no-op. Who may complete what is decided by ``common/authz/policies.cedar``.
 """
 from __future__ import annotations
 
@@ -13,19 +16,29 @@ from typing import Any, Dict, List, Optional
 
 from botocore.exceptions import ClientError
 
-from common import auth, aws, db, tasks
+from common import auth, authz, aws, db, tasks
 from common.http import ApiError, ok
 from recovery_agent import rules
 
 log = logging.getLogger(__name__)
 
 MAX_TXNS = 20
-IGNORED_SFN_CODES = ("TaskTimedOut", "TaskDoesNotExist", "InvalidToken")
+DONE_SFN_CODES = ("TaskDoesNotExist", "InvalidToken")
+
+
+class TaskExpired(Exception):
+    pass
 
 
 def get_tasks(req: Any) -> Dict[str, Any]:
-    _, circle_id = auth.require_circle(req.sub)
-    return ok({"tasks": tasks.list_open_tasks(circle_id, limit=50)})
+    profile, circle_id = auth.require_circle(req.sub)
+    principal = authz.principal_from_profile(profile)
+    visible: List[Dict[str, Any]] = []
+    for task in tasks.list_open_tasks(circle_id, limit=50):
+        allowed, _ = authz.is_authorized(principal, "ViewTasks", authz.task_resource({**task, "circleId": circle_id}))
+        if allowed:
+            visible.append(task)
+    return ok({"tasks": visible})
 
 
 def _validate_txns(body: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -65,12 +78,16 @@ def build_output(task: Dict[str, Any], body: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _send_task_success(token: str, output: Dict[str, Any]) -> None:
-    """SendTaskSuccess; ignored codes mean the workflow already moved on. Anything else -> 502."""
+    """SendTaskSuccess. ``TaskTimedOut`` -> TaskExpired; DONE codes mean the execution is gone
+    (task still closes as done); anything else -> 502 and the task stays open."""
     try:
         aws.sfn_client().send_task_success(taskToken=token, output=json.dumps(output))
     except ClientError as exc:
         code = exc.response.get("Error", {}).get("Code", "")
-        if code in IGNORED_SFN_CODES:
+        if code == "TaskTimedOut":
+            log.warning("send_task_success: token timed out; task is stale")
+            raise TaskExpired() from exc
+        if code in DONE_SFN_CODES:
             log.warning("send_task_success ignored (%s)", code)
             return
         log.error("send_task_success failed (%s): %s", code, exc)
@@ -81,34 +98,61 @@ def _send_task_success(token: str, output: Dict[str, Any]) -> None:
 
 
 def _code_word_matched(task: Dict[str, Any], output: Dict[str, Any]) -> Optional[bool]:
+    """True/False when the parent has a code word and the son sent one; None when the parent has
+    no code word configured (the UI then shows neither 'matched' nor 'fake')."""
     parent_sub = (task.get("context") or {}).get("parentSub")
     if not parent_sub or "codeWord" not in output:
         return None
     parent = auth.load_profile(parent_sub) or {}
     expected = str(parent.get("codeWord") or "").strip().lower()
+    if not expected:
+        return None
     given = str(output.get("codeWord") or "").strip().lower()
-    return bool(expected) and expected == given
+    return expected == given
 
 
-def _update_case(task: Dict[str, Any], output: Dict[str, Any]) -> None:
+def _case_key(task: Dict[str, Any]) -> Optional[Any]:
     case_id = (task.get("context") or {}).get("caseId")
     if not case_id:
+        return None
+    return db.circle_pk(task["circleId"]), "CASE#%s" % case_id
+
+
+def _persist_case_result(task: Dict[str, Any], output: Dict[str, Any]) -> None:
+    """Write the guardian's confirmed data on the CASE BEFORE the workflow is told to continue
+    (idempotent SET; a retry writes the same values)."""
+    key = _case_key(task)
+    if not key:
         return
-    attrs: Dict[str, Any] = {"openTaskId": None}
+    attrs: Dict[str, Any] = {}
     if "ackNo" in output:
         attrs["ackNo"] = output["ackNo"]
     if "txns" in output:
         attrs["confirmedTxns"] = output["txns"]
-    db.set_attributes(db.circle_pk(task["circleId"]), "CASE#%s" % case_id, attrs)
+    if attrs:
+        db.set_attributes(key[0], key[1], attrs)
+
+
+def _clear_open_task(task: Dict[str, Any]) -> None:
+    key = _case_key(task)
+    if key:
+        db.set_attributes(key[0], key[1], {"openTaskId": None})
+
+
+def _expire(task: Dict[str, Any], completed_by: str) -> Dict[str, Any]:
+    tasks.complete_task(task, "", completed_by, new_status="expired")
+    raise ApiError(409, "task_expired", "This step timed out and the workflow has moved on; check the newer task",
+                   reason="task-expired", message_hi="यह कदम समय पर पूरा नहीं हुआ और आगे बढ़ चुका है; नया काम देखें")
 
 
 def post_complete(req: Any) -> Dict[str, Any]:
     profile, circle_id = auth.require_circle(req.sub)
     task = auth.ensure_same_circle(tasks.get_task_by_id(req.param("taskId")), circle_id)
-    if task.get("assigneeSub") != req.sub and profile.get("role") not in auth.GUARDIAN_ROLES:
-        raise ApiError(403, "forbidden", "This task is assigned to someone else")
+    if task.get("status") == "expired":
+        raise ApiError(409, "task_expired", "This task expired; check the newer task", reason="task-expired")
     if task.get("status") != "open":
         return ok({"taskId": task["taskId"], "status": task.get("status")})
+    authz.require(profile, "CompleteTask", authz.task_resource(task), what="task")
     output = build_output(task, req.body)
     warning = output.pop("warning", None)
     extra: Dict[str, Any] = {}
@@ -121,13 +165,17 @@ def post_complete(req: Any) -> Dict[str, Any]:
         extra["ackNo"] = output["ackNo"]
     if "txns" in output:
         extra["txns"] = output["txns"]
-    # 1. hand the result to Step Functions (502 + task stays open on a real failure)
+    # 1. the CASE carries the confirmed data before Build can possibly read it
+    _persist_case_result(task, output)
+    # 2. hand the result to Step Functions (502 + task stays open on a real failure)
     if task.get("taskToken"):
-        _send_task_success(task["taskToken"], output)
-    # 2. conditional open -> done (idempotent; a concurrent completion loses the race quietly)
-    transitioned = tasks.complete_task(task, output["outcome"], req.sub, extra=extra)
-    if transitioned:
-        _update_case(task, output)
+        try:
+            _send_task_success(task["taskToken"], output)
+        except TaskExpired:
+            _expire(task, req.sub)
+    # 3. conditional open -> done (idempotent; a concurrent completion loses the race quietly)
+    if tasks.complete_task(task, output["outcome"], req.sub, extra=extra):
+        _clear_open_task(task)
     response: Dict[str, Any] = {"taskId": task["taskId"], "status": "done"}
     if warning:
         response["warning"] = warning

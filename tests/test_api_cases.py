@@ -25,7 +25,9 @@ def test_case_create_and_get(api, family):
                        "timeouts": {"rung": 45, "confirm": 120, "call1930": 45, "ncrp": 45, "mrm": 120}}
     status, case = api("GET", "/cases/{caseId}", family["guardian1"], path_params={"caseId": body["caseId"]})
     assert status == 200 and case["status"] == "open" and case["victimName"] == "Ramesh Kumar"
-    assert case["objectKeys"] == _keys(family) and case["executionArn"] == body["executionArn"]
+    assert case["objectKeys"] == _keys(family)
+    assert "executionArn" not in case  # kept in the DB, never returned by GET
+    assert db.get_item("CIRCLE#%s" % family["circleId"], "CASE#%s" % body["caseId"])["executionArn"] == body["executionArn"]
     assert "circleId" not in case and "PK" not in case
     status, listing = api("GET", "/cases", family["guardian1"])
     assert status == 200 and listing["cases"][0]["caseId"] == body["caseId"]
@@ -47,9 +49,14 @@ def test_case_validation_and_quota(api, family):
     assert api("POST", "/cases", g, {"objectKeys": ["circles/other/case/a.png"], "victimName": "R"})[0] == 404
     assert api("POST", "/cases", g, {"objectKeys": _keys(family), "victimName": ""})[0] == 400
     assert api("POST", "/cases", g, {"objectKeys": _keys(family), "victimName": "R", "incidentDate": "17/09"})[0] == 400
-    # the failed calls above did not consume quota; 30 good calls then 429
-    for _ in range(30):
+    # the failed calls above did not consume quota; a case is weighted by its number of images
+    # (2 here): 15 good calls reach the cap of 30, the 16th is 429
+    for _ in range(15):
         assert api("POST", "/cases", g, {"objectKeys": _keys(family), "victimName": "R"})[0] == 202
     status, body = api("POST", "/cases", g, {"objectKeys": _keys(family), "victimName": "R"})
     assert status == 429 and body["error"] == "quota_exceeded"
     assert db.get_item("QUOTA#%s" % g, db.ist_date())["count"] == 30
+    # a 5-image case costs 5
+    h = family["guardian2"]
+    assert api("POST", "/cases", h, {"objectKeys": _keys(family, 5), "victimName": "R"})[0] == 202
+    assert db.get_item("QUOTA#%s" % h, db.ist_date())["count"] == 5

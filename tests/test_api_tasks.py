@@ -118,7 +118,8 @@ def test_informational_task_without_token_just_closes(api, family):
     assert tasks.get_task_by_id(task["taskId"])["status"] == "done"
 
 
-def test_send_task_success_timeout_is_ignored(api, family, monkeypatch):
+def test_send_task_success_timeout_is_409_task_expired(api, family, monkeypatch):
+    """The workflow already moved past this token: the task closes as expired and is never 'done'."""
     from botocore.exceptions import ClientError
 
     sfn = family["sfn"]
@@ -129,7 +130,12 @@ def test_send_task_success_timeout_is_ignored(api, family, monkeypatch):
     monkeypatch.setattr(sfn, "send_task_success", boom)
     task = _task(family, "guardian_call", "g1")
     status, body = api("POST", "/tasks/{taskId}/complete", "g1", {"outcome": "reached"}, {"taskId": task["taskId"]})
-    assert status == 200
+    assert status == 409 and body["error"] == "task_expired" and body["reason"] == "task-expired"
+    assert tasks.get_task_by_id(task["taskId"])["status"] == "expired"
+    # and it stays 409 afterwards, never a 200 "done"
+    status, body = api("POST", "/tasks/{taskId}/complete", "g1", {"outcome": "reached"}, {"taskId": task["taskId"]})
+    assert status == 409 and body["error"] == "task_expired"
+    assert api("GET", "/tasks", "g1")[1]["tasks"] == []
 
 
 def test_send_task_success_runs_before_marking_done_and_502_leaves_task_open(api, family, monkeypatch):

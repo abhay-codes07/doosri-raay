@@ -70,6 +70,12 @@ def create_task(
     }
     if task_token:
         item["taskToken"] = task_token
+        # a new token task supersedes the earlier open ones of the same kind for the same
+        # parent / case: completing a stale one would otherwise report done to a workflow that
+        # has already moved on
+        superseded = supersede_open_tasks(circle_id, kind, context or {})
+        if superseded:
+            log.info("superseded %d stale %s task(s) in circle %s", superseded, kind, circle_id)
     db.put_item(item)
     log.info("task created kind=%s id=%s circle=%s", kind, task_id, circle_id)
     return item
@@ -135,6 +141,25 @@ def complete_task(
             return False
         raise
     return True
+
+
+def supersede_open_tasks(circle_id: str, kind: str, context: Dict[str, Any]) -> int:
+    """Expire open tasks of ``kind`` that belong to the same case (``context.caseId``) or the same
+    parent (``context.parentSub``). Returns the count."""
+    case_id = context.get("caseId")
+    parent_sub = context.get("parentSub")
+    closed = 0
+    for task in db.query_prefix(db.circle_pk(circle_id), "TASK#", filter_expression=Attr("status").eq("open")):
+        if task.get("kind") != kind:
+            continue
+        ctx = task.get("context") or {}
+        same_case = bool(case_id) and ctx.get("caseId") == case_id
+        same_parent = bool(parent_sub) and ctx.get("parentSub") == parent_sub
+        if not (same_case or same_parent):
+            continue
+        if complete_task(task, "", "system", new_status="expired"):
+            closed += 1
+    return closed
 
 
 def close_open_tasks(circle_id: str, kinds: Optional[List[str]] = None, status: str = "expired") -> int:

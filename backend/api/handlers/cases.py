@@ -6,7 +6,7 @@ import logging
 import re
 from typing import Any, Dict, List
 
-from common import auth, aws, config, db, quota, timeouts
+from common import auth, authz, aws, config, db, quota, timeouts
 from common.http import ApiError, ok
 from api.handlers.analyze import ensure_circle_key
 
@@ -16,9 +16,9 @@ MAX_OBJECT_KEYS = 5
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 PUBLIC_FIELDS = (
     "caseId", "status", "state", "victimName", "incidentDate", "narrativeHint", "objectKeys",
-    "extracted", "confirmedTxns", "artifacts", "ackNo", "openTaskId", "executionArn", "error",
+    "extracted", "confirmedTxns", "artifacts", "ackNo", "openTaskId", "error", "agentPath",
     "createdAt", "updatedAt",
-)
+)  # executionArn stays in the DB only
 LIST_FIELDS = ("caseId", "status", "victimName", "createdAt")
 
 
@@ -95,7 +95,8 @@ def start_recovery(circle_id: str, case_id: str) -> str:
 def post_case(req: Any) -> Dict[str, Any]:
     _, circle_id = auth.require_circle(req.sub)
     fields = parse_case_body(req.body, circle_id)
-    quota.consume_quota(req.sub)
+    # one case costs one model call per screenshot plus the narrative: weight the quota by images
+    quota.consume_quota(req.sub, weight=len(fields["objectKeys"]))
     case = create_case(circle_id, req.sub, fields)
     arn = start_recovery(circle_id, case["caseId"])
     db.set_attributes(case["PK"], case["SK"], {"executionArn": arn})
@@ -103,13 +104,15 @@ def post_case(req: Any) -> Dict[str, Any]:
 
 
 def get_case(req: Any) -> Dict[str, Any]:
-    _, circle_id = auth.require_circle(req.sub)
+    profile, circle_id = auth.require_circle(req.sub)
     stub = auth.ensure_same_circle(db.get_by_gsi1("CASEID#%s" % req.param("caseId")), circle_id)
+    authz.require(profile, "ViewCase", authz.circle_resource(stub.get("circleId")), what="case")
     case = db.get_item(stub["PK"], stub["SK"]) or stub
     return ok({k: case.get(k) for k in PUBLIC_FIELDS})
 
 
 def get_cases(req: Any) -> Dict[str, Any]:
-    _, circle_id = auth.require_circle(req.sub)
+    profile, circle_id = auth.require_circle(req.sub)
+    authz.require(profile, "ViewCase", authz.circle_resource(circle_id), what="cases")
     items = db.query_prefix(db.circle_pk(circle_id), "CASE#", reverse=True, limit=50)
     return ok({"cases": [{k: c.get(k) for k in LIST_FIELDS} for c in items]})

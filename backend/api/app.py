@@ -7,7 +7,7 @@ from typing import Any, Callable, Dict, Optional
 from common import auth
 from common.http import ApiError, error, parse_body, response
 from common.quota import QuotaExceeded
-from api.handlers import analyze, cases, checkin, circles, demo, profile, puchho, push, reports, sos, tasks, uploads
+from api.handlers import analyze, cases, checkin, circles, demo, profile, puchho, push, reports, sos, sources, tasks, uploads
 
 log = logging.getLogger(__name__)
 logging.getLogger().setLevel(logging.INFO)
@@ -59,6 +59,7 @@ ROUTES: Dict[str, Handler] = {
     "POST /demo/seed": demo.post_seed,
     "POST /demo/reset": demo.post_reset,
     "GET /demo/config": demo.get_config,
+    "GET /sources": sources.get_sources,
 }
 
 
@@ -81,7 +82,7 @@ def handler(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]:
         sub = auth.get_sub(event)
         return fn(Request(event, sub))
     except ApiError as exc:
-        return error(exc.status, exc.code, exc.message)
+        return error(exc.status, exc.code, exc.message, reason=exc.reason, message_hi=exc.message_hi)
     except QuotaExceeded:
         return error(429, "quota_exceeded", "Daily limit reached; try again tomorrow")
     except Exception:  # noqa: BLE001 - never leak stack traces to clients

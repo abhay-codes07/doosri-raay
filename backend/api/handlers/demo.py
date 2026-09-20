@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List
 
-from common import auth, config, db, tasks, timeouts
+from common import auth, authz, config, db, tasks, timeouts
 from common.http import ApiError, ok
 from api.handlers import checkin
 from api.handlers.circles import add_member, create_circle
@@ -124,7 +124,7 @@ def post_reset(req: Any) -> Dict[str, Any]:
     if not (config.demo_seed_enabled() or config.demo_timeouts()):
         raise ApiError(404, "not_found", "Not found")
     profile, circle_id = auth.require_circle(req.sub)
-    auth.require_role(profile, *auth.GUARDIAN_ROLES)
+    authz.require(profile, "ResetDemo", authz.circle_resource(circle_id), what="demo reset")
     return ok(reset_circle(circle_id))
 
 

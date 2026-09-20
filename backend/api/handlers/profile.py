@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, List, Optional
 
-from common import auth, aws, config, db
+from common import auth, authz, aws, config, db
 from common.http import ApiError, ok
 
 ALLOWED_FIELDS = (
@@ -165,6 +165,10 @@ def circle_summary(circle_id: Optional[str]) -> Optional[Dict[str, Any]]:
 
 def post_profile(req: Any) -> Dict[str, Any]:
     existing = auth.load_profile(req.sub) or {}
+    # the caller edits their own settings; the policy file is what forbids a guardian from
+    # editing the parent's (guardian-notification-only), should such a route ever exist
+    authz.require({**existing, "sub": req.sub}, "UpdateParentSettings",
+                  authz.profile_resource({**existing, "sub": req.sub}), what="profile")
     fields = clean_profile_fields(req.body, existing.get("circleId"))
     profile = upsert_profile(req.sub, fields, auth.get_email(req.event))
     return ok({"profile": public_profile(profile)})

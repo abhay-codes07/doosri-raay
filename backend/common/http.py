@@ -11,11 +11,14 @@ from common import config
 class ApiError(Exception):
     """Raised by handlers; the router turns it into an error response."""
 
-    def __init__(self, status: int, code: str, message: str = "") -> None:
+    def __init__(self, status: int, code: str, message: str = "", reason: Optional[str] = None,
+                 message_hi: Optional[str] = None) -> None:
         super().__init__(message or code)
         self.status = status
         self.code = code
         self.message = message or code
+        self.reason = reason  # policy id (Cedar @id) behind a 403/409, when there is one
+        self.message_hi = message_hi
 
 
 class _Encoder(json.JSONEncoder):
@@ -57,8 +60,14 @@ def ok(body: Any = None, status: int = 200) -> Dict[str, Any]:
     return response(status, body if body is not None else {})
 
 
-def error(status: int, code: str, message: str = "") -> Dict[str, Any]:
-    return response(status, {"error": code, "message": message or code})
+def error(status: int, code: str, message: str = "", reason: Optional[str] = None,
+          message_hi: Optional[str] = None) -> Dict[str, Any]:
+    body: Dict[str, Any] = {"error": code, "message": message or code}
+    if reason:
+        body["reason"] = reason
+    if message_hi:
+        body["messageHi"] = message_hi
+    return response(status, body)
 
 
 def parse_body(event: Dict[str, Any]) -> Dict[str, Any]:
