@@ -1,7 +1,10 @@
 # Amplify Hosting build spec for the Vite PWA in frontend/.
 # Set VITE_API_URL, VITE_USER_POOL_ID, VITE_USER_POOL_CLIENT_ID (and optionally VITE_REGION,
 # VITE_VAPID_PUBLIC_KEY, VITE_DEMO_PARENT_EMAIL) as Amplify environment variables; Vite reads
-# them at build time. Add the SPA rewrite rule (see frontend/README.md) in the Amplify console.
+# them at build time. Add the SPA rewrite rule in the Amplify console (App settings -> Rewrites and
+# redirects; infra/README.md has the exact rule) - rewrites cannot be expressed in this file.
+# Node 22 is pinned with nvm (the Amplify build image ships several versions and defaults to an
+# older one); Amplify runs every phase in one shell, so `nvm use` carries over to the build phase.
 version: 1
 applications:
   - appRoot: frontend
@@ -9,6 +12,9 @@ applications:
       phases:
         preBuild:
           commands:
+            - nvm install 22
+            - nvm use 22
+            - node --version
             - npm ci
         build:
           commands:

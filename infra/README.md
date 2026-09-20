@@ -22,7 +22,7 @@ The template uses only long-form intrinsics (`Fn::Sub`, `Ref`, `Fn::GetAtt`) so 
 - AWS SAM CLI >= 1.100 (`pip install aws-sam-cli` or the installer).
 - Docker Desktop running (`sam build --use-container` builds the Python functions in the x86_64 Lambda build image; the recovery agent is a container image).
 - For the local path only: Docker Compose v2 (`docker compose`), included in Docker Desktop.
-- Node 20 (`frontend/`), Python 3.10+ (`scripts/`, `eval/`, tests), GNU make (Git Bash on Windows works).
+- Node 22 (`frontend/`; `amplify.yml` pins the same major with `nvm use 22`), Python 3.10+ (`scripts/`, `eval/`, tests), GNU make (Git Bash on Windows works).
 
 ## First deploy checklist
 
@@ -83,7 +83,13 @@ Only the public key is a stack parameter (it is also served by `GET /push/public
    | `VITE_REGION` | `ap-south-1` |
    | `VITE_VAPID_PUBLIC_KEY` | the VAPID public key |
 
-4. Add a rewrite rule for the SPA/PWA: source `</^[^.]+$|\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webmanifest)$)([^.]+$)/>` -> target `/index.html`, type `200 (Rewrite)`.
+4. Add the SPA/PWA rewrite rule. It lives in the console (**App settings -> Rewrites and redirects**), not in `amplify.yml`: the build spec has no rewrite section (`customHeaders` is for headers only), so a bare deep link such as `/try` or `/demo` 404s until this rule exists. Source `</^[^.]+$|\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webmanifest)$)([^.]+$)/>` -> target `/index.html`, type `200 (Rewrite)`. The regex sends every path without a file extension (and any extension not in the list) to `index.html`, while real assets are served as-is. Same rule from the CLI:
+
+   ```bash
+   aws amplify update-app --app-id <appId> --region ap-south-1 --custom-rules '[{"source":"</^[^.]+$|\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webmanifest)$)([^.]+$)/>","target":"/index.html","status":"200"}]'
+   ```
+
+   `amplify.yml` also pins **Node 22** with `nvm install 22 && nvm use 22` in `preBuild`; the build image's default Node is older than what Vite 7 wants.
 5. After the first Amplify build, copy its URL (e.g. `https://main.d1234abcd.amplifyapp.com`) and **redeploy the backend with that origin** so API Gateway and S3 CORS accept it:
 
    ```bash
