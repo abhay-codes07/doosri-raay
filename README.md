@@ -13,7 +13,7 @@ Amplify Hosting; Bedrock is reached through global inference profiles. Submissio
 
 ## Try it (no sign-up)
 
-- **Live demo:** `<AMPLIFY_URL>/try` — opens a seeded judge circle with the parent tile on the left and the
+- **Live demo:** `https://main.d2inambt66a14p.amplifyapp.com/try` — opens a seeded judge circle with the parent tile on the left and the
   guardian dashboard on the right, **no account needed**. The judge stack runs 45-second timers, so a missed
   check-in escalates while you watch. Press **Reset demo** first if a previous judge left a ladder running.
   Each judge circle has its own daily LLM quota. If `/try` ever shows "not configured", use `/demo` with the
@@ -290,17 +290,18 @@ placeholder and this README claims no accuracy. Why three states rather than two
 
 ## Deployment status
 
-**Not deployed at the time of writing (20 Sep 2026, morning).** `make validate`, `make image-check` and
-`make test` pass locally; no `sam deploy` has run and no Amplify app exists. The team updates this table:
+**Deployed (20 Sep 2026).** The SAM stack is live in ap-south-1 and the PWA is hosted on Amplify at
+https://main.d2inambt66a14p.amplifyapp.com; `make validate`, `make image-check` and `make test` also pass
+locally (230 backend tests). Current status:
 
 | Item | Status |
 |---|---|
-| SAM stack `doosriraay` in ap-south-1 | `<FILL BEFORE SUBMISSION>` |
-| Amplify Hosting app / live URL | `<FILL BEFORE SUBMISSION>` |
-| Judge circles seeded, `/try` route live | `<FILL BEFORE SUBMISSION>` |
-| `DemoTimeouts=1`, `DemoSeedEnabled=0`, `BudgetEmail`, `make set-vapid` on the demo stack | `<FILL BEFORE SUBMISSION>` |
-| `python scripts/verify_sources.py` exit 0, manifest committed | `<FILL BEFORE SUBMISSION>` |
-| Eval run against Bedrock (`eval/results.md`) | `<FILL BEFORE SUBMISSION>` (not run) |
+| SAM stack `doosriraay` in ap-south-1 | Deployed (`CREATE_COMPLETE`) |
+| Amplify Hosting app / live URL | Live: https://main.d2inambt66a14p.amplifyapp.com |
+| Judge circles seeded, `/try` route live | Done (3 judge circles + recording circle) |
+| `DemoTimeouts=1`, `DemoSeedEnabled=0`, `BudgetEmail`, `make set-vapid` on the demo stack | Done |
+| `python scripts/verify_sources.py` exit 0, manifest committed | Done (exit 0; 12/13 sources fetched, WEF blocks scripts) |
+| Eval run against Bedrock (`eval/results.md`) | Pending (Bedrock new-account verification hold) |
 
 ## Demo mode and judge circles
 

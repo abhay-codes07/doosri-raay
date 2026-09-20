@@ -78,7 +78,7 @@ tile and the guardian dashboard side by side in one browser.
 
 ## Live demo
 
-**`<AMPLIFY_URL>/try` — no sign-up needed.** The `/try` route drops a judge into a seeded judge circle
+**`https://main.d2inambt66a14p.amplifyapp.com/try` — no sign-up needed.** The `/try` route drops a judge into a seeded judge circle
 (parent tile on the left, guardian dashboard on the right) without creating an account. Timers on the judge
 stack are the 45-second demo timers, so a missed check-in escalates while you watch; press "Reset demo" first
 if a previous judge left a ladder running.
