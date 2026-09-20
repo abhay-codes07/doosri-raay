@@ -90,7 +90,7 @@ def test_watch_check(api, family):
     circle = family["circleId"]
     started = db.now_iso(db.utcnow() - dt.timedelta(minutes=5))
     assert watch_check.handler({"circleId": circle, "parentSub": "p1", "sinceTs": started}, None) == {
-        "checkedIn": False, "holidayMode": False}
+        "checkedIn": False, "holidayMode": False, "superseded": False}
     api("POST", "/checkin", "p1", {})
     assert watch_check.handler({"circleId": circle, "parentSub": "p1", "sinceTs": started}, None)["checkedIn"] is True
     # legacy input name still works

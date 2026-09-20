@@ -1,8 +1,15 @@
 """ladder-task Lambda (STATE_MACHINES.md "ladder-task").
 
 Payload: ``{kind, rung?, assigneeRole, circleId, parentSub?, caseId?, reason?, wait,
-taskToken?, attempt?, reminder?, escalation?, executionArn?}`` (infra/README.md). ``executionArn``
-(``$$.Execution.Id``) on a ladder rung is stored as ``activeLadderArn`` on the parent's MEMBER item.
+taskToken?, attempt?, reminder?, escalation?, executionArn?, timeouts?}`` (infra/README.md).
+``executionArn`` (``$$.Execution.Id``) on a ladder rung is stored as ``activeLadderArn`` (with
+``activeLadderReason``) on the parent's MEMBER item. ``timeouts.rung`` sets ``expiresAt``.
+
+Ladder identity: rung 1 of a ``missed_checkin`` ladder re-checks for a CHECKIN with
+``ts > member.watchSinceTs`` before creating any task; if the parent checked in between the
+Watch's decision and this rung, the rung is answered ``{"outcome": "reached"}`` through
+``SendTaskSuccess`` and no guardian is disturbed. The ``emergency`` rung never raises: a failure
+there is logged and returned so the Ladder still ends in ``Escalated``.
 
 Creates a TASK from kind + circle data, stores the Step Functions task token
 when ``wait`` is true, pushes to the assignee (all guardians for emergency/sos).
@@ -13,10 +20,11 @@ Returns ``{"taskId": ...}``.
 """
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any, Dict, List, Optional
 
-from common import auth, db, push, tasks, texts, timeouts
+from common import auth, aws, db, push, tasks, texts, timeouts
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
@@ -192,11 +200,44 @@ def create_ladder_task(event: Dict[str, Any]) -> Dict[str, Any]:
 
 def _record_ladder_execution(event: Dict[str, Any], circle_id: str, parent_sub: Optional[str]) -> None:
     """Rung 1 (or any ladder rung) tells us the Ladder execution ARN via ``executionArn``
-    (``$$.Execution.Id`` in the ASL); store it so POST /checkin and /demo/reset can stop it."""
+    (``$$.Execution.Id`` in the ASL); store it (and the reason) so POST /checkin and /demo/reset
+    can stop it - and so /checkin knows to leave an SOS ladder running."""
     arn = event.get("executionArn")
     if not arn or not parent_sub or event.get("kind") not in tasks.LADDER_KINDS:
         return
-    db.set_attributes(db.circle_pk(circle_id), db.member_sk(parent_sub), {"activeLadderArn": arn})
+    db.set_attributes(db.circle_pk(circle_id), db.member_sk(parent_sub),
+                      {"activeLadderArn": arn, "activeLadderReason": event.get("reason") or "missed_checkin"})
+
+
+def _checked_in_since_watch(circle_id: str, parent_sub: Optional[str]) -> bool:
+    """A CHECKIN strictly later than the parent's ``watchSinceTs`` means the parent is fine."""
+    if not parent_sub:
+        return False
+    member = db.get_item(db.circle_pk(circle_id), db.member_sk(parent_sub)) or {}
+    since = member.get("watchSinceTs")
+    if not since:
+        return False
+    items = db.query_prefix(db.circle_pk(circle_id), "CHECKIN#", limit=2, reverse=True)
+    since_dt = db.parse_iso(since)
+    return any(item.get("ts") and db.parse_iso(item["ts"]) > since_dt for item in items)
+
+
+def _resolve_without_task(event: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Rung 1 of a missed-check-in ladder whose parent has since checked in: answer the rung
+    ``reached`` ourselves and create nothing. Returns the result dict, or None to proceed."""
+    if event.get("kind") != "guardian_call" or int(event.get("rung") or 0) != 1:
+        return None
+    if (event.get("reason") or "missed_checkin") != "missed_checkin" or not event.get("taskToken"):
+        return None
+    if not _checked_in_since_watch(event["circleId"], event.get("parentSub")):
+        return None
+    try:
+        aws.sfn_client().send_task_success(taskToken=event["taskToken"], output=json.dumps({"outcome": "reached"}))
+    except Exception as exc:  # noqa: BLE001 - if the token cannot be answered, fall back to a real task
+        log.warning("rung 1 re-check: could not resolve the token (%s); creating the task", exc)
+        return None
+    log.info("rung 1 re-check: parent checked in after the watch; ladder resolved without a task")
+    return {"taskId": None, "resolved": True, "outcome": "reached"}
 
 
 def _after_create(event: Dict[str, Any], circle_id: str, kind: str, task: Dict[str, Any], ctx: Dict[str, Any]) -> None:
@@ -214,5 +255,16 @@ def _after_create(event: Dict[str, Any], circle_id: str, kind: str, task: Dict[s
 
 def handler(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]:
     log.info("ladder-task kind=%s circle=%s wait=%s", event.get("kind"), event.get("circleId"), event.get("wait"))
+    resolved = _resolve_without_task(event)
+    if resolved is not None:
+        return resolved
+    if event.get("kind") == "emergency":
+        # the last rung must never fail the Ladder: log, mark escalated as far as possible, return
+        try:
+            task = create_ladder_task(event)
+        except Exception as exc:  # noqa: BLE001
+            log.exception("emergency rung failed; returning without a task")
+            return {"taskId": None, "error": str(exc)[:300]}
+        return {"taskId": task["taskId"]}
     task = create_ladder_task(event)
     return {"taskId": task["taskId"]}

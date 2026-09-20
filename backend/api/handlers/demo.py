@@ -110,8 +110,8 @@ def reset_circle(circle_id: str) -> Dict[str, Any]:
                 checkin.stop_execution_quietly(arn, "demo reset")
                 stopped.append(arn)
         db.set_attributes(db.circle_pk(circle_id), db.member_sk(parent["sub"]),
-                          {"ladderState": "ok", "activeLadderArn": None, "activeWatchArn": None,
-                           "watchDeadline": None, "watchSinceTs": None})
+                          {"ladderState": "ok", "activeLadderArn": None, "activeLadderReason": None,
+                           "activeWatchArn": None, "watchDeadline": None, "watchSinceTs": None})
     closed = tasks.close_open_tasks(circle_id)
     today = db.ist_date()
     db.delete_item(db.circle_pk(circle_id), checkin.checkin_sk(today))

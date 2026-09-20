@@ -1,11 +1,14 @@
 """POST /profile, GET /profile."""
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any, Dict, List, Optional
 
 from common import auth, authz, aws, config, db
 from common.http import ApiError, ok
+
+log = logging.getLogger(__name__)
 
 ALLOWED_FIELDS = (
     "name", "lang", "city", "state", "phone", "checkinHourIST", "holidayMode",
@@ -171,7 +174,36 @@ def post_profile(req: Any) -> Dict[str, Any]:
                   authz.profile_resource({**existing, "sub": req.sub}), what="profile")
     fields = clean_profile_fields(req.body, existing.get("circleId"))
     profile = upsert_profile(req.sub, fields, auth.get_email(req.event))
-    return ok({"profile": public_profile(profile)})
+    rearmed = rearm_watch_if_needed(existing, profile, fields)
+    body = {"profile": public_profile(profile)}
+    if rearmed:
+        body["watchRearmed"] = True
+    return ok(body)
+
+
+def rearm_watch_if_needed(before: Dict[str, Any], after: Dict[str, Any], fields: Dict[str, Any]) -> bool:
+    """A parent turning holidayMode off, or changing checkinHourIST, gets a fresh Watch with the
+    new deadline (the old one is stopped). Demo stacks only re-arm a Watch that is already
+    running: the first tile open arms it there. Never raises (settings must save regardless)."""
+    if after.get("role") != "parent" or not after.get("circleId"):
+        return False
+    holiday_off = "holidayMode" in fields and bool(before.get("holidayMode")) and not fields["holidayMode"]
+    hour_changed = "checkinHourIST" in fields and fields["checkinHourIST"] != before.get("checkinHourIST")
+    if not (holiday_off or hour_changed):
+        return False
+    from api.handlers import checkin  # local import keeps the handler import graph flat
+
+    circle_id = after["circleId"]
+    member = db.get_item(db.circle_pk(circle_id), db.member_sk(after["sub"])) or {}
+    if config.demo_timeouts() and not member.get("activeWatchArn"):
+        return False
+    try:
+        hour = int(after.get("checkinHourIST") if after.get("checkinHourIST") is not None else config.checkin_hour_default())
+        checkin.start_watch(circle_id, after["sub"], hour, existing_arn=member.get("activeWatchArn") or "")
+        return True
+    except Exception as exc:  # noqa: BLE001
+        log.warning("could not re-arm the Watch after a settings change: %s", exc)
+        return False
 
 
 def get_profile(req: Any) -> Dict[str, Any]:

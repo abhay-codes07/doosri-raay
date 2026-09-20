@@ -10,7 +10,7 @@ import json
 import logging
 from typing import Any, Dict, List
 
-from common import auth, aws, config, db, push, tasks, texts, timeouts
+from common import auth, aws, config, db, push, quota, tasks, texts, timeouts
 from common.http import ApiError, ok
 from api.handlers.checkin import stop_active_ladder
 
@@ -37,6 +37,7 @@ def _guardians(members: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 def post_sos(req: Any) -> Dict[str, Any]:
     profile, circle_id = auth.require_circle(req.sub)
     auth.require_role(profile, "parent")
+    quota.consume_quota(req.sub, limit=quota.SOS_QUOTA, bucket="sos")
     body = req.body
     lat = _number(body, "lat", -90, 90)
     lon = _number(body, "lon", -180, 180)
@@ -81,7 +82,7 @@ def post_sos(req: Any) -> Dict[str, Any]:
     arn = _start_ladder(circle_id, req.sub)
     db.set_attributes(sos_item["PK"], sos_item["SK"], {"ladderExecutionArn": arn})
     db.set_attributes(db.circle_pk(circle_id), db.member_sk(req.sub),
-                      {"activeLadderArn": arn or None, "lastSosAt": ts})
+                      {"activeLadderArn": arn or None, "activeLadderReason": "sos" if arn else None, "lastSosAt": ts})
 
     # pushes last: every DynamoDB write and Step Functions call above is already durable
     push.push_for_tasks(created, auth.load_profile)

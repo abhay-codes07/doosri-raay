@@ -27,6 +27,7 @@ def handler(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]:
     attrs: Dict[str, Any] = {"ladderState": state}
     if state == "ok":
         attrs["activeLadderArn"] = None  # the Ladder resolved itself; nothing left to stop
+        attrs["activeLadderReason"] = None
     db.set_attributes(db.circle_pk(circle_id), db.member_sk(parent_sub), attrs)
     closed = 0
     if bool(event.get("closeOpenTasks", state == "ok")):

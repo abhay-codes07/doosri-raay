@@ -96,19 +96,24 @@ def start_watch(
 
 
 def stop_active_ladder(circle_id: str, parent_sub: str, member: Optional[Dict[str, Any]] = None,
-                       cause: str = "parent checked in") -> Optional[str]:
+                       cause: str = "parent checked in", keep_reasons: Tuple[str, ...] = ()) -> Optional[str]:
     """Stop the Ladder recorded on the parent's MEMBER item (if any), close its open tasks and
-    reset ``ladderState`` to ok. Returns the ARN that was stopped (or None)."""
+    reset ``ladderState`` to ok. A ladder whose ``activeLadderReason`` is in ``keep_reasons``
+    (the check-in path passes ``("sos",)``: a tile open never cancels a silent SOS) is left
+    running. Returns the ARN that was stopped (or None)."""
     if member is None:
         member = db.get_item(db.circle_pk(circle_id), db.member_sk(parent_sub)) or {}
     arn = member.get("activeLadderArn")
+    if arn and member.get("activeLadderReason") in keep_reasons:
+        log.info("ladder %s kept running (reason=%s)", arn, member.get("activeLadderReason"))
+        return None
     if arn:
         stop_execution_quietly(arn, cause)
     if arn or member.get("ladderState") not in (None, "ok"):
         tasks.close_open_tasks(circle_id, kinds=list(tasks.LADDER_KINDS))
     if arn or member.get("ladderState") != "ok":
         db.set_attributes(db.circle_pk(circle_id), db.member_sk(parent_sub),
-                          {"ladderState": "ok", "activeLadderArn": None})
+                          {"ladderState": "ok", "activeLadderArn": None, "activeLadderReason": None})
     return arn or None
 
 
@@ -135,7 +140,7 @@ def post_checkin(req: Any) -> Dict[str, Any]:
         raise ApiError(400, "invalid_source", "source must be tile or sos")
     item = write_checkin(circle_id, source)
     member = db.get_item(db.circle_pk(circle_id), db.member_sk(req.sub)) or {}
-    stopped_ladder = stop_active_ladder(circle_id, req.sub, member)
+    stopped_ladder = stop_active_ladder(circle_id, req.sub, member, keep_reasons=("sos",))
     hour = int(profile.get("checkinHourIST") or config.checkin_hour_default())
     _, deadline = start_watch(circle_id, req.sub, hour, existing_arn=member.get("activeWatchArn") or "",
                               since_ts=item["ts"], checked_in=True)
