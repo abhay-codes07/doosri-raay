@@ -110,4 +110,4 @@ affiliated with I4C, 1930 or cybercrime.gov.in. Anything it tells you, from a th
 must be verified with the 1930 helpline or on cybercrime.gov.in before you act on it. If money has moved, call
 1930 first.
 
-The code is MIT-licensed at `<REPO_URL>`; the live demo needs no sign-up at `<AMPLIFY_URL>/try`.
+The code is MIT-licensed at `https://github.com/abhay-codes07/doosri-raay`; the live demo needs no sign-up at `<AMPLIFY_URL>/try`.
