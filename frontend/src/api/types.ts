@@ -363,6 +363,9 @@ export interface SourceQuote {
 
 export interface SourceEntry {
   url: string;
+  id?: string;
+  title?: string;
+  error?: string;
   sha256?: string;
   bytes?: number;
   contentType?: string;
@@ -373,7 +376,9 @@ export interface SourceEntry {
 
 export interface SourcesResponse {
   sources: SourceEntry[];
+  /** `verifiedAt` (contract) or `generatedAt` (manifest). */
   verifiedAt?: string;
+  /** A sentence; an object summary from the manifest is folded into one. */
   summary?: string;
 }
 

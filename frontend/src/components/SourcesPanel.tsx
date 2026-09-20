@@ -82,8 +82,8 @@ export function SourcesPanel({ defaultOpen = false }: { defaultOpen?: boolean })
                   <li key={src.url} id={sourceAnchor(src)} className={`source ${allFound ? 'source-ok' : 'source-warn'}`}>
                     <div className="row spread">
                       <a href={src.url} target="_blank" rel="noreferrer" className="source-url">
-                        {host}
-                        <span className="muted small">{src.url.replace(/^https?:\/\/[^/]+/i, '')}</span>
+                        {src.title ?? host}
+                        <span className="muted small">{src.title ? normalizeUrl(src.url) : src.url.replace(/^https?:\/\/[^/]+/i, '')}</span>
                       </a>
                       <span className={`badge ${src.fetched ? 'badge-ok' : 'badge-red'}`}>{src.fetched ? t('sourceFetched') : t('sourceNotFetched')}</span>
                     </div>
@@ -92,6 +92,7 @@ export function SourcesPanel({ defaultOpen = false }: { defaultOpen?: boolean })
                       {typeof src.bytes === 'number' ? ` · ${formatBytes(src.bytes)}` : ''}
                       {src.contentType ? ` · ${src.contentType}` : ''}
                       {src.fetchedAt ? ` · ${formatTimeIST(src.fetchedAt, lang)}` : ''}
+                      {!src.fetched && src.error ? ` · ${src.error}` : ''}
                     </p>
                     {src.quotes.length > 0 && (
                       <ul className="list-plain small">

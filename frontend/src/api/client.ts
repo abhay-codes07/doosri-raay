@@ -273,24 +273,42 @@ export function createApiClient(getToken: TokenProvider = amplifyTokenProvider, 
     },
     getSources: async () => {
       const r = await request<Partial<SourcesResponse>>('GET', '/sources');
-      const raw: unknown[] = Array.isArray(r.sources) ? r.sources : [];
+      // Accepts both the contract shape ({sources, verifiedAt, summary}) and the verify_sources.py
+      // manifest ({sources, generatedAt, summary:{...}} with quoteFound per quote).
+      const rr: Record<string, unknown> = isRecord(r) ? r : {};
+      const raw: unknown[] = Array.isArray(rr.sources) ? rr.sources : [];
+      const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
       const sources: SourceEntry[] = raw.flatMap((s) => {
         if (!isRecord(s) || typeof s.url !== 'string') return [];
         const quotesRaw: unknown[] = Array.isArray(s.quotes) ? s.quotes : [];
-        const quotes = quotesRaw.flatMap((q) => (isRecord(q) && typeof q.quote === 'string' ? [{ quote: q.quote, found: q.found === true }] : []));
+        const quotes = quotesRaw.flatMap((q) =>
+          isRecord(q) && typeof q.quote === 'string' ? [{ quote: q.quote, found: q.found === true || q.quoteFound === true }] : [],
+        );
         return [
           {
             url: s.url,
-            sha256: typeof s.sha256 === 'string' ? s.sha256 : undefined,
+            id: str(s.id),
+            title: str(s.title),
+            error: str(s.error),
+            sha256: str(s.sha256),
             bytes: typeof s.bytes === 'number' ? s.bytes : undefined,
-            contentType: typeof s.contentType === 'string' ? s.contentType : undefined,
-            fetchedAt: typeof s.fetchedAt === 'string' ? s.fetchedAt : undefined,
+            contentType: str(s.contentType),
+            fetchedAt: str(s.fetchedAt),
             fetched: s.fetched === true,
             quotes,
           },
         ];
       });
-      return { sources, verifiedAt: typeof r.verifiedAt === 'string' ? r.verifiedAt : undefined, summary: typeof r.summary === 'string' ? r.summary : undefined };
+      let summary = str(rr.summary);
+      if (!summary && isRecord(rr.summary)) {
+        const m = rr.summary;
+        const n = (k: string) => (typeof m[k] === 'number' ? (m[k] as number) : undefined);
+        const parts: string[] = [];
+        if (n('sourcesFetched') !== undefined && n('sources') !== undefined) parts.push(`${n('sourcesFetched')}/${n('sources')} fetched`);
+        if (n('citationsVerified') !== undefined && n('citations') !== undefined) parts.push(`${n('citationsVerified')}/${n('citations')} quotes found`);
+        summary = parts.join(' · ') || undefined;
+      }
+      return { sources, verifiedAt: str(rr.verifiedAt) ?? str(rr.generatedAt), summary };
     },
     getDemoConfig: () => request('GET', '/demo/config'),
     demoReset: () => request('POST', '/demo/reset', {}),
