@@ -311,9 +311,20 @@ export function TaskCard({ task, parentName, parentPhone, onComplete, inlineCase
             </span>
           </div>
           <div className="task-actions">
-            {outcomeButton('yes', 'btn btn-ok', { codeWord: codeWord.trim() })}
+            {/* "yes" without a code word would tell the parent the call is fake: require it, and never send an empty key. */}
+            {allowed.includes('yes') && (
+              <button
+                type="button"
+                className="btn btn-ok btn-big"
+                disabled={busy || !codeWord.trim()}
+                onClick={() => complete({ outcome: 'yes', codeWord: codeWord.trim() })}
+              >
+                {t('yesItsMe')}
+              </button>
+            )}
             {outcomeButton('no', 'btn btn-danger')}
           </div>
+          {!codeWord.trim() && <p className="small muted">{t('codeWordRequired')}</p>}
         </>
       );
       break;

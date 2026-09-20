@@ -194,6 +194,10 @@ export const S = {
     en: 'Yeh call sach nahi hai. Phone kaat dein. Parivaar ko bata diya gaya hai.',
   },
   puchhoTrue: { hi: 'सच है। आप उनसे सीधा बात करें।', en: 'Sach hai. Aap unse seedha baat karein.' },
+  puchhoYesUnverified: {
+    hi: 'जवाब हाँ है, कोड वर्ड नहीं मिला — खुद फ़ोन करके पक्का करें।',
+    en: 'Jawab haan hai, code word nahi mila — khud phone karke pakka karein. (They said yes, but no code word was checked; call them yourself.)',
+  },
   puchhoNoAnswer: { hi: 'अभी जवाब नहीं आया। फ़ोन काट दें और परिवार को खुद फ़ोन करें।', en: 'No answer yet. Hang up and call your family yourself.' },
   puchhoPlay: { hi: 'फिर से सुनें', en: 'Play again' },
   puchhoAudioFail: { hi: 'आवाज़ नहीं चल पाई; नीचे पढ़ें।', en: 'Audio did not play; read below.' },
@@ -274,6 +278,7 @@ export const S = {
   noNotMe: { hi: 'नहीं', en: 'No' },
   codeWordInput: { hi: 'परिवार का गुप्त शब्द', en: 'Family code word' },
   codeWordAsk: { hi: 'गुप्त शब्द बताइए ताकि पक्का हो सके', en: 'Enter the code word so this can be verified' },
+  codeWordRequired: { hi: '"हाँ" के लिए गुप्त शब्द ज़रूरी है — बिना शब्द के जवाब झूठा माना जाएगा।', en: '"Yes" needs the code word; without it the answer would read as fake.' },
   rung: { hi: 'कदम', en: 'Rung' },
   expiresIn: { hi: 'समय बाकी', en: 'Time left' },
   expired: { hi: 'समय पूरा', en: 'Expired' },

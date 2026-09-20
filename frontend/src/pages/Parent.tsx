@@ -341,7 +341,17 @@ function MadadSection({ guardianName }: { guardianName?: string }) {
     setPhase({ kind: 'idle' });
   };
 
-  const familyOk = phase.kind === 'family_result' && phase.result.outcome === 'yes' && phase.result.codeWordMatched !== false;
+  // "सच है" only when the son said yes AND the code word matched. null = no code word configured
+  // or none checked: say so and tell Papa to call the family himself. false or "no" = not true.
+  const familyVerdict: 'true' | 'unverified' | 'false' =
+    phase.kind !== 'family_result' || phase.result.outcome !== 'yes'
+      ? 'false'
+      : phase.result.codeWordMatched === true
+        ? 'true'
+        : phase.result.codeWordMatched === null
+          ? 'unverified'
+          : 'false';
+  const familyOk = familyVerdict === 'true';
 
   return (
     <section className="card" aria-labelledby={`${uid}-madad`}>
@@ -401,11 +411,11 @@ function MadadSection({ guardianName }: { guardianName?: string }) {
       )}
 
       {phase.kind === 'family_result' && (
-        <div className={`card ${familyOk ? 'tone-ok' : 'tone-red'}`} role="status" aria-live="assertive">
+        <div className={`card ${familyOk ? 'tone-ok' : familyVerdict === 'unverified' ? 'tone-amber' : 'tone-red'}`} role="status" aria-live="assertive">
           <p className="puchho-result">
-            <Bi k={familyOk ? 'puchhoTrue' : 'puchhoNotTrue'} />
+            <Bi k={familyOk ? 'puchhoTrue' : familyVerdict === 'unverified' ? 'puchhoYesUnverified' : 'puchhoNotTrue'} />
           </p>
-          {!familyOk && guardianName && <p className="muted small">{t('familySeeing', { name: guardianName })}</p>}
+          {familyVerdict === 'false' && guardianName && <p className="muted small">{t('familySeeing', { name: guardianName })}</p>}
           <button type="button" className="btn mt" onClick={reset}>
             <Bi k="close" />
           </button>
