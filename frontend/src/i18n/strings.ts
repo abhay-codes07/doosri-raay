@@ -177,6 +177,7 @@ export const S = {
   weatherOffline: { hi: 'मौसम अभी नहीं मिल पाया। थोड़ी देर में फिर देखें।', en: 'Weather not available right now.' },
   weatherNoCity: { hi: 'शहर भरें तो मौसम दिखेगा।', en: 'Add your city to see the weather.' },
   weatherStale: { hi: 'पिछली जानकारी', en: 'last known' },
+  weatherCredit: { hi: 'मौसम:', en: 'Weather:' },
   medsTitle: { hi: 'आज की दवाइयाँ', en: 'Today\'s medicines' },
   medsNone: { hi: 'कोई दवा दर्ज नहीं है।', en: 'No medicines listed.' },
   medsAllDone: { hi: 'आज की सब दवाइयाँ हो गईं। बहुत अच्छे!', en: 'All of today\'s medicines taken. Well done!' },

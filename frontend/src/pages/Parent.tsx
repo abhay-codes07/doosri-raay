@@ -219,6 +219,19 @@ function ParentTile({ embedded, onSignOut }: { embedded: boolean; onSignOut?: ()
               </span>
             </div>
           )}
+          {city && (
+            <p className="small muted attribution" style={{ margin: '8px 0 0' }}>
+              {t('weatherCredit')}{' '}
+              <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">
+                Open-Meteo.com
+              </a>{' '}
+              (
+              <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">
+                CC BY 4.0
+              </a>
+              )
+            </p>
+          )}
         </section>
 
         {/* Medicines */}
