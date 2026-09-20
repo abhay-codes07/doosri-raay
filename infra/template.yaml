@@ -291,9 +291,11 @@ Resources:
                 Fn::Sub: "https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}"
               audience:
                 - Ref: UserPoolClient
+      # 20 rps / burst 50 is shared by every open tab of every user; three guardian tabs polling
+      # reports plus the parent tile were hitting 429 at 5/10. DailyQuota remains the cost guard.
       DefaultRouteSettings:
-        ThrottlingRateLimit: 5
-        ThrottlingBurstLimit: 10
+        ThrottlingRateLimit: 20
+        ThrottlingBurstLimit: 50
       AccessLogSettings:
         DestinationArn:
           Fn::GetAtt: [HttpApiAccessLogGroup, Arn]
@@ -383,10 +385,24 @@ Resources:
             - Sid: UploadBucketObjects
               Effect: Allow
               Action:
-                - s3:GetObject
+                - s3:GetObject   # covers circles/*, photos/* and sources/* (GET /sources)
                 - s3:PutObject   # also what a presigned POST is signed with
               Resource:
                 Fn::Sub: "${UploadBucket.Arn}/*"
+            # Without ListBucket, S3 answers a GetObject/HeadObject on a missing key with 403 instead
+            # of 404, so the API could not tell "not uploaded yet" from "not allowed". Limited to the
+            # two prefixes the API reads.
+            - Sid: UploadBucketListPrefixes
+              Effect: Allow
+              Action:
+                - s3:ListBucket
+              Resource:
+                Fn::GetAtt: [UploadBucket, Arn]
+              Condition:
+                StringLike:
+                  s3:prefix:
+                    - "sources/*"
+                    - "circles/*"
             - Sid: StartStateMachines
               Effect: Allow
               Action:
@@ -560,6 +576,13 @@ Resources:
               Ref: HttpApi
             Path: /puchho/{taskId}
             Method: GET
+        GetSources:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: HttpApi
+            Path: /sources
+            Method: GET
         GetPushPublicKey:
           Type: HttpApi
           Properties:
@@ -610,10 +633,11 @@ Resources:
       # The API invokes this function asynchronously (Event). Lambda's default async policy would
       # retry a failed / timed-out invocation twice more and queue events for up to 6 hours, so one
       # slow Bedrock call could become three 120-second bills and a stale classification. No retries,
-      # and events older than 60 s are dropped (the report stays "pending" and the UI re-polls).
+      # and events older than 300 s are dropped (the report stays "pending" and the UI re-polls).
+      # 60 s was too tight: a cold start plus a short Lambda queueing delay stranded reports.
       EventInvokeConfig:
         MaximumRetryAttempts: 0
-        MaximumEventAgeInSeconds: 60
+        MaximumEventAgeInSeconds: 300
       Environment:
         Variables:
           TABLE_NAME:
@@ -626,6 +650,9 @@ Resources:
             Ref: ModelId
           FALLBACK_MODEL_ID:
             Ref: FallbackModelId
+          # Same cap as the API so /analyze and the worker agree when the parameter is overridden.
+          UPLOAD_MAX_BYTES:
+            Ref: UploadMaxBytes
       Policies:
         - DynamoDBCrudPolicy:
             TableName:

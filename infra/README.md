@@ -7,7 +7,7 @@ Everything in this folder is deployed by one AWS SAM stack (`infra/template.yaml
 | DynamoDB table (`Table`) | single table from `docs/DATA_MODEL.md`: PK/SK, GSI1, TTL on `ttl`, PITR on |
 | S3 bucket (`UploadBucket`) | screenshots via presigned POST; public access blocked, SSE-S3, CORS only for `AppOrigins`, `circles/` expires after 7 days, TLS-only bucket policy |
 | Cognito (`UserPool`, `UserPoolClient`) | e-mail sign-in, no client secret, SRP + USER_PASSWORD + refresh flows, 1 h tokens / 30 d refresh |
-| HTTP API (`HttpApi`) | every route from `docs/API.md` on one `ApiFunction`, JWT authorizer `CognitoJwt` as default, 5 rps / burst 10 |
+| HTTP API (`HttpApi`) | every route from `docs/API.md` on one `ApiFunction`, JWT authorizer `CognitoJwt` as default, 20 rps / burst 50 |
 | Lambda | `ApiFunction`, `ClassifyWorkerFunction`, `LadderTaskFunction`, `WatchCheckFunction`, `LadderStatusFunction` (zip, python3.12, x86_64) and `RecoveryAgentFunction` (container image, Strands) |
 | Step Functions (Standard) | `WatchStateMachine`, `LadderStateMachine`, `RecoveryStateMachine` from `infra/statemachines/*.asl.json`, logging level ERROR without execution data (task tokens / transactions stay out of CloudWatch), 14-day log groups |
 | SSM parameter | `/doosriraay/<stack>/vapid-private-key` placeholder (see VAPID below) |
@@ -115,7 +115,7 @@ Only the public key is a stack parameter (it is also served by `GET /push/public
 
 ## Cost guards
 
-- API Gateway stage throttle 5 rps / burst 10 (`DefaultRouteSettings`).
+- API Gateway stage throttle 20 rps / burst 50 (`DefaultRouteSettings`; shared by every open tab, so the per-user `DailyQuota` is the real cost guard).
 - Per-user daily LLM quota `DailyQuota` (default 30) enforced in the API on `/analyze`, `/cases`, `/puchho`.
 - Presigned POST capped at `UploadMaxBytes` (default 3.5 MB), `image/*` only; screenshots expire after 7 days.
 - Bedrock `max_tokens` capped in code; Haiku fallback on throttling.
