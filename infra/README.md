@@ -141,7 +141,7 @@ make env STACK=doosriraay-judge && make seed STACK=doosriraay-judge
 
 Before recording the demo video, in this order: `make set-vapid` (the Parameter Store screenshot must show a SecureString, not the `REPLACE_ME` placeholder), confirm the Budgets e-mail subscription (the Budgets shot exists only with `BudgetEmail`), then `make seed`.
 
-After judging: rotate the seeded credentials with `python scripts/seed.py --rotate` (same `--user-pool-id/--client-id/--api-url/--region` as `make seed`; it sets new permanent passwords on the demo users so the ones printed in `docs/DEMO.md` stop working), redeploy with `DemoTimeouts=0` if the stack lives on, or `make teardown STACK=doosriraay-judge`.
+After judging: rotate the seeded credentials with `python scripts/seed.py --rotate` (same `--user-pool-id/--client-id/--api-url/--region` as `make seed`; it sets new permanent passwords on the demo users), redeploy with `DemoTimeouts=0` if the stack lives on, or `make teardown STACK=doosriraay-judge`.
 
 ## Cost guards
 
