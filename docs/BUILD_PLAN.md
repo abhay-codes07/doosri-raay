@@ -1,6 +1,6 @@
 # Doosri Raay — Build Plan (reconciled, Fri 18 Sep 2026)
 
-One name: **Doosri Raay** ("second opinion"). One hero: **the passive isolation ladder**, backed by the **recovery case manager**. One demo script (section 9). This supersedes `golden-hour-build-plan.md`.
+One name: **Doosri Raay** ("second opinion"). One hero: **the passive isolation ladder**, backed by the **recovery case manager**. One demo script (section 9).
 
 Thesis: isolation is the weapon; a second opinion is the antidote. Every documented digital-arrest save came from an outsider, so the guardian is the user and the parent does nothing under duress.
 
@@ -12,7 +12,7 @@ Time left: Fri 18 (afternoon/evening), Sat 19, Sun 20 (submit by 20:00 IST). Tea
 
 ### Ships
 1. **Isolation ladder (hero, passive).** Parent's app is a genuinely useful Panchang tile: today's tithi and date, weather, medicine reminder, family photo of the day. Opening it is the check-in. No check-in by the parent's deadline **and** a guardian call unanswered → Step Functions ladder escalates guardian 1 → guardian 2 → named neighbour (script + address) → 112 guidance. Zero victim action. Nothing ever appears on the parent's screen.
-2. **Recovery case manager (hero).** Guardian or parent opens a case after a loss. Strands agent extracts UTR/amount/payee/time from screenshots (validated in code, confirmed by the user beside the screenshot), drafts the 1930 script and an NCRP-compliant narrative, looks up the state e-Zero FIR threshold and MRM eligibility, and drives a long-running Step Functions case with human-in-loop callbacks and deadlines (24 h NCRP, 30-day Chakshu).
+2. **Recovery case manager (hero).** Guardian or parent opens a case after a loss. Strands agent extracts UTR/amount/payee/time from screenshots (validated in code, confirmed by the user beside the screenshot), drafts the 1930 script and an NCRP-compliant narrative, looks up the state e-Zero FIR threshold and MRM eligibility, and drives a long-running Step Functions case with human-in-loop callbacks and deadlines (24 h to confirm fields, 15 min for the 1930 call, 24 h NCRP, 7 days MRM). There is no Chakshu step in the case.
 3. **Classifier (minor tool).** Screenshot or pasted text → single Bedrock Converse call with structured output → three states. Async (202 + poll).
 
 ### Stretch (time-boxed, Sat 15:00–19:00 only if both heroes are green)
@@ -30,7 +30,7 @@ Time left: Fri 18 (afternoon/evening), Sat 19, Sun 20 (submit by 20:00 IST). Tea
 
 ---
 
-## 2. Architecture (8 services, all ap-south-1)
+## 2. Architecture (one SAM stack in ap-south-1; Bedrock reached through global inference profiles)
 
 | Service | Role | Where it appears on video |
 |---|---|---|
@@ -43,7 +43,7 @@ Time left: Fri 18 (afternoon/evening), Sat 19, Sun 20 (submit by 20:00 IST). Tea
 | **S3** | Screenshots via presigned POST (size-capped), block public access, SSE, 7-day lifecycle | 1:40 |
 | **Step Functions (Standard)** | `Watch` (per-parent daily deadline), `Ladder`, `RecoveryCase`; all human steps use `waitForTaskToken` with timeouts | 0:35, 2:05 |
 
-Polly is a 9th service only if Puchho ships. No EventBridge Scheduler: each check-in (and onboarding) starts a `Watch` execution that waits until the next deadline, so the "missed check-in" trigger is Step Functions itself and is visible in the console.
+Polly ships with Puchho (section 1, item 4). The full service list, including the operational ones (ECR, SSM, CloudWatch, X-Ray, Budgets), is the README's table. No EventBridge Scheduler: each check-in (and onboarding) starts a `Watch` execution that waits until the next deadline, so the "missed check-in" trigger is Step Functions itself and is visible in the console.
 
 ### Routes (all behind Cognito JWT authorizer; circleId always derived from the caller's token, never from the request body or path)
 ```
@@ -196,7 +196,7 @@ Every read handler: fetch item, compare `circleId` to token claim, else 404.
 | 0:35–1:05 | Step Functions: Watch execution passes deadline → Ladder starts. Right pane: Priya's task "Call Papa now" (push or foreground). She taps "No answer". Rung 2 → second guardian → Rung 3 neighbour script with address. DynamoDB task item for 2 s. | "Today he didn't open it. The watch expires, the ladder starts. Priya calls, no answer, that is the second signal. The neighbour gets a script. Papa's screen never changed, and nothing was recorded." |
 | 1:05–1:20 | Classifier card: forwarded WhatsApp screenshot → "watching" state, tactics listed, "no red flags found, still ask family" copy on a benign one. | "The checker is a minor tool. It never says safe." |
 | 1:20–2:20 | Recovery: Priya opens a case for Papa; two UPI screenshots; extracted fields beside the image, one UTR flagged and corrected; 1930 script; NCRP narrative with character count; state e-Zero FIR threshold; MRM checklist. Step Functions RecoveryCase at `NCRPFiled` waiting; timer expires → guardian task. | "After a loss, everyone else gives a 1930 button. We run the whole pipeline: extraction validated in code, the NCRP form's real rules, the state's e-Zero FIR threshold, and the refund module most victims never reach. Every step is a callback with a deadline." |
-| 2:20–2:45 | Console tour, 3 s each: Amplify, Cognito, API Gateway, Lambda, Bedrock model id in env, S3 bucket policy. (DynamoDB and Step Functions already shown.) | "Eight services, each one you just saw doing work." |
+| 2:20–2:45 | Console tour, 3 s each: Amplify, Cognito, API Gateway, Lambda, Bedrock model id in env, S3 bucket policy. (DynamoDB and Step Functions already shown; `docs/DEMO.md` is the authoritative, longer shot list.) | "Nine services doing product work, each one you just saw doing it." |
 | 2:45–3:00 | Eval table; prior-art slide naming Kavach/Rakshak/SwarVed and the four gaps; roadmap: bank-counter copilot, Khyaal/Emoha distribution. | "Seventy-item Hindi and English eval with benign controls, numbers in the README. What we learned: build the outsider." |
 
 If Puchho ships, insert 15 s after 1:05: Papa taps "koi kehta hai CBI" → Polly Hindi plays the I4C line, guardian notified; trim the console tour.
