@@ -352,4 +352,7 @@ export interface DemoConfig {
 export interface ApiErrorBody {
   error: string;
   message?: string;
+  /** 403: "covert-hidden-from-parent" | "guardian-notification-only". */
+  reason?: string;
+  messageHi?: string;
 }

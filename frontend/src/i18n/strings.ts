@@ -55,6 +55,7 @@ export const S = {
   authErrLimit: { hi: 'बहुत कोशिशें हो गईं; थोड़ी देर बाद फिर करें।', en: 'Too many attempts; try again in a while.' },
   authErrUnsupportedStep: { hi: 'यह खाता अभी यहाँ साइन इन नहीं कर सकता।', en: 'This account needs a step this screen does not support.' },
   authErrGeneric: { hi: 'साइन इन नहीं हो पाया।', en: 'Could not sign in.' },
+  authSessionExpired: { hi: 'सत्र समाप्त हो गया — कृपया फिर से साइन इन करें।', en: 'Your session expired; please sign in again.' },
   empty: { hi: 'अभी कुछ नहीं है।', en: 'Nothing here yet.' },
   navParent: { hi: 'पंचांग', en: 'Panchang' },
   navGuardian: { hi: 'परिवार', en: 'Family' },

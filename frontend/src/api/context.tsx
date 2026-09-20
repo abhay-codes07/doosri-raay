@@ -26,11 +26,26 @@ export function jwtSub(token: string): string {
   return 'unknown';
 }
 
-/** Wrap a subtree so every useApi() inside uses an explicit ID token (the /demo left pane). */
-export function ApiTokenProvider({ token, children }: { token: string; children: ReactNode }) {
+/**
+ * Wrap a subtree so every useApi() inside uses an explicit ID token (the /demo left pane).
+ * A 401 on this client must not sign out the Amplify user: it goes to `onUnauthorized` instead.
+ */
+export function ApiTokenProvider({
+  token,
+  onUnauthorized,
+  children,
+}: {
+  token: string;
+  onUnauthorized?: () => void;
+  children: ReactNode;
+}) {
   const value = useMemo<ApiCtx>(
-    () => ({ client: createApiClient(async () => token), identity: jwtSub(token), overridden: true }),
-    [token],
+    () => ({
+      client: createApiClient(async () => token, { onUnauthorized: () => onUnauthorized?.() }),
+      identity: jwtSub(token),
+      overridden: true,
+    }),
+    [token, onUnauthorized],
   );
   return <ApiContext.Provider value={value}>{children}</ApiContext.Provider>;
 }

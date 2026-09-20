@@ -35,15 +35,28 @@ export const API_URL: string = (import.meta.env.VITE_API_URL ?? '').replace(/\/+
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
-  constructor(status: number, code: string, message: string) {
+  /** 403 bodies carry a machine reason (e.g. covert-hidden-from-parent) and a Hindi message. */
+  readonly reason?: string;
+  readonly messageHi?: string;
+  constructor(status: number, code: string, message: string, extra: { reason?: string; messageHi?: string } = {}) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.code = code;
+    this.reason = extra.reason;
+    this.messageHi = extra.messageHi;
   }
 }
 
 export type TokenProvider = () => Promise<string | null>;
+
+export interface ClientOptions {
+  /** Called on every 401 (HTTP or missing session) so the owner of the token can react. */
+  onUnauthorized?: (e: ApiError) => void;
+}
+
+/** Window event dispatched by the shared Amplify client on 401; AuthGate signs out on it. */
+export const UNAUTHORIZED_EVENT = 'dr:unauthorized';
 
 /** Default token source: the Amplify session of the signed-in user. */
 export const amplifyTokenProvider: TokenProvider = async () => {
@@ -62,7 +75,10 @@ function parseErrorBody(status: number, raw: string): ApiError {
     const parsed: unknown = JSON.parse(raw);
     if (isRecord(parsed) && typeof parsed.error === 'string') {
       const body = parsed as unknown as ApiErrorBody;
-      return new ApiError(status, body.error, body.message ?? body.error);
+      return new ApiError(status, body.error, body.message ?? body.error, {
+        reason: typeof body.reason === 'string' ? body.reason : undefined,
+        messageHi: typeof body.messageHi === 'string' ? body.messageHi : undefined,
+      });
     }
   } catch {
     /* not JSON */
@@ -128,11 +144,19 @@ const sleep = (ms: number, signal?: AbortSignal) =>
     });
   });
 
-export function createApiClient(getToken: TokenProvider = amplifyTokenProvider): ApiClient {
+export function createApiClient(getToken: TokenProvider = amplifyTokenProvider, opts: ClientOptions = {}): ApiClient {
+  const unauthorized = (e: ApiError): ApiError => {
+    try {
+      opts.onUnauthorized?.(e);
+    } catch {
+      /* never mask the original error */
+    }
+    return e;
+  };
   async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
     if (!API_URL) throw new ApiError(0, 'not_configured', 'VITE_API_URL is not set');
     const token = await getToken();
-    if (!token) throw new ApiError(401, 'no_session', 'Not signed in');
+    if (!token) throw unauthorized(new ApiError(401, 'no_session', 'Not signed in'));
     const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
     if (body !== undefined) headers['Content-Type'] = 'application/json';
     let res: Response;
@@ -146,6 +170,7 @@ export function createApiClient(getToken: TokenProvider = amplifyTokenProvider):
       throw new ApiError(0, 'network', e instanceof Error ? e.message : 'network error');
     }
     const raw = await res.text();
+    if (res.status === 401) throw unauthorized(parseErrorBody(res.status, raw));
     if (!res.ok) throw parseErrorBody(res.status, raw);
     if (!raw) return {} as T;
     try {
@@ -248,8 +273,10 @@ export function createApiClient(getToken: TokenProvider = amplifyTokenProvider):
   return client;
 }
 
-/** Shared default client (Amplify session). */
-export const api: ApiClient = createApiClient();
+/** Shared default client (Amplify session). A 401 here means the session is gone: tell AuthGate. */
+export const api: ApiClient = createApiClient(amplifyTokenProvider, {
+  onUnauthorized: () => window.dispatchEvent(new Event(UNAUTHORIZED_EVENT)),
+});
 
 export function isAbort(e: unknown): boolean {
   return e instanceof DOMException && e.name === 'AbortError';
@@ -257,14 +284,32 @@ export function isAbort(e: unknown): boolean {
 
 export function describeError(e: unknown, lang: 'hi' | 'en' = 'hi'): string {
   if (e instanceof ApiError) {
+    if (e.status === 403) {
+      if (lang === 'hi' && e.messageHi) return e.messageHi;
+      switch (e.reason) {
+        case 'covert-hidden-from-parent':
+          return lang === 'hi' ? 'यह जानकारी माता-पिता के फ़ोन पर नहीं दिखती।' : 'This is kept off the parent\'s phone.';
+        case 'guardian-notification-only':
+          return lang === 'hi' ? 'परिवार को सिर्फ़ ख़बर मिलती है; यह बदलाव माता-पिता के फ़ोन से होता है।' : 'Family members are notified only; this change is made from the parent\'s phone.';
+        default:
+          return lang === 'hi' ? 'इसकी अनुमति नहीं है।' : e.message || 'Not allowed.';
+      }
+    }
     switch (e.code) {
+      case 'http_429':
+      case 'throttled':
+        return lang === 'hi' ? 'थोड़ा रुकें — बहुत जल्दी-जल्दी अनुरोध हो रहे हैं।' : 'Please wait a moment; too many requests.';
+      case 'task_expired':
+        return lang === 'hi' ? 'यह काम अब समय से बाहर है — सूची ताज़ा की जा रही है।' : 'This task has expired; the list is being refreshed.';
+      case 'no_session':
+      case 'http_401':
+      case 'unauthorized':
+        return lang === 'hi' ? 'सत्र समाप्त हो गया — कृपया फिर से साइन इन करें।' : 'Session expired; please sign in again.';
       case 'quota_exceeded':
         return lang === 'hi' ? 'आज की सीमा पूरी हो गई। कल फिर कोशिश करें।' : 'Daily quota reached. Try again tomorrow.';
       case 'network':
       case 'upload_network':
         return lang === 'hi' ? 'नेटवर्क नहीं मिल रहा।' : 'No network right now.';
-      case 'no_session':
-        return lang === 'hi' ? 'कृपया फिर से साइन इन करें।' : 'Please sign in again.';
       case 'not_configured':
         return 'VITE_API_URL is not set (see frontend/.env.example).';
       case 'not_found':

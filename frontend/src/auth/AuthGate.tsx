@@ -8,6 +8,7 @@ import {
   signOut,
   signUp,
 } from 'aws-amplify/auth';
+import { UNAUTHORIZED_EVENT } from '../api/client';
 import { S, type StringKey } from '../i18n/strings';
 
 export interface AuthedUser {
@@ -209,6 +210,21 @@ export function AuthGate({ header, children }: { header: ReactNode; children: (u
         setView('signIn');
       });
   }, []);
+
+  // The API client saw a 401 (expired/revoked session): back to the sign-in form with a notice.
+  useEffect(() => {
+    if (status.kind !== 'in') return undefined;
+    let fired = false;
+    const onUnauthorized = () => {
+      if (fired) return;
+      fired = true;
+      setNotice('authSessionExpired');
+      setError(null);
+      doSignOut();
+    };
+    window.addEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
+  }, [status.kind, doSignOut]);
 
   if (status.kind === 'loading') {
     return (
