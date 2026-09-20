@@ -42,7 +42,11 @@ export async function enablePush(api: ApiClient): Promise<EnablePushResult> {
     }
     if (!key) return { ok: false, reason: 'no_key' };
 
-    const reg = await navigator.serviceWorker.ready;
+    // `ready` never settles when no worker is registered (dev, blocked SW): race it with 3 s.
+    const reg = await Promise.race<ServiceWorkerRegistration>([
+      navigator.serviceWorker.ready,
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('service worker not ready')), 3000)),
+    ]);
     let sub = await reg.pushManager.getSubscription();
     if (!sub) {
       sub = await reg.pushManager.subscribe({
