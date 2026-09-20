@@ -39,6 +39,7 @@ fail_on_empty_changeset = false
 resolve_s3 = true
 resolve_image_repos = true
 # AppOrigins is a comma-separated list (no spaces, no trailing slashes): add the Amplify URL once you have it.
+# For the stack judges use, infra/README.md -> "Judge stack" lists the recommended values (DailyQuota=200 etc.).
 # BudgetEmail: SET IT. It is the only thing that creates the USD 20 / USD 50 monthly cost alarms;
 # an empty value means the stack deploys with NO cost alarm at all (the budgets are conditional).
 # VapidPublicKey is the public half from `npx web-push generate-vapid-keys`.

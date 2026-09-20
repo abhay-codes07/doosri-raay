@@ -120,6 +120,29 @@ Only the public key is a stack parameter (it is also served by `GET /push/public
 - `recovery-agent` payload `{action: extract|build|mrm|finalize|fail, circleId, caseId, error?}`; `mrm` must return `{eligible, firRequired, checklist}` in the Lambda result (the Choice reads `$.mrm.Payload.eligible`). The agent reads confirmed transactions and the NCRP ack number from the CASE item, so `POST /tasks/{id}/complete` must persist `txns` / `ackNo` there before calling `SendTaskSuccess`.
 - Task outcomes read by Choice states: ladder rungs `outcome == "reached"`; `Call1930` `outcome == "done"`; everything else is treated as "move to the next rung / escalate".
 
+## Judge stack
+
+Run the stack the judges touch as its own deployment (`STACK=doosriraay-judge`, or a second `samconfig.toml` environment) so a demo reset never stops a developer's ladder, and deploy it with this parameter set:
+
+| Parameter | Value | Why |
+|---|---|---|
+| `DemoTimeouts` | `1` | 45-second Watch deadline and rung timeouts, so a judge sees the ladder move without waiting hours (`backend/common/timeouts.py` has the per-timer values) |
+| `DemoSeedEnabled` | `0` | `make seed` goes through `/circles` + `/circles/join`; `POST /demo/seed` stays closed |
+| `DailyQuota` | `200` | several judges share one stack and one circle; `30` LLM calls a day would run out mid-session |
+| `AppOrigins` | `https://<branch>.<appId>.amplifyapp.com,http://localhost:5173` | the Amplify URL (no trailing slash) plus the Vite dev origin; both API Gateway and S3 CORS read it |
+| `BudgetEmail` | your address | **set it or you have no cost alarm**; also the source of the Budgets console shot in `docs/DEMO.md` |
+| `VapidPublicKey` | the public half of `npx web-push generate-vapid-keys` | push works only with the private half in SSM, next step |
+
+```bash
+make deploy STACK=doosriraay-judge PARAMS='DemoTimeouts=1 DemoSeedEnabled=0 DailyQuota=200 AppOrigins=https://main.d1234abcd.amplifyapp.com,http://localhost:5173 BudgetEmail=you@example.com VapidPublicKey=<public key>'
+make set-vapid STACK=doosriraay-judge VAPID_PRIVATE_KEY='<private key>'   # BEFORE recording: the SSM shot otherwise shows REPLACE_ME and no push is ever sent
+make env STACK=doosriraay-judge && make seed STACK=doosriraay-judge
+```
+
+Before recording the demo video, in this order: `make set-vapid` (the Parameter Store screenshot must show a SecureString, not the `REPLACE_ME` placeholder), confirm the Budgets e-mail subscription (the Budgets shot exists only with `BudgetEmail`), then `make seed`.
+
+After judging: rotate the seeded credentials with `python scripts/seed.py --rotate` (same `--user-pool-id/--client-id/--api-url/--region` as `make seed`; it sets new permanent passwords on the demo users so the ones printed in `docs/DEMO.md` stop working), redeploy with `DemoTimeouts=0` if the stack lives on, or `make teardown STACK=doosriraay-judge`.
+
 ## Cost guards
 
 - API Gateway stage throttle 20 rps / burst 50 (`DefaultRouteSettings`; shared by every open tab, so the per-user `DailyQuota` is the real cost guard).
