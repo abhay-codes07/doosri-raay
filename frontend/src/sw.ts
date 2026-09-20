@@ -2,8 +2,14 @@
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
 import { registerRoute, NavigationRoute } from 'workbox-routing';
 import { createHandlerBoundToURL } from 'workbox-precaching';
+import { clientsClaim } from 'workbox-core';
 
 declare let self: ServiceWorkerGlobalScope;
+
+// autoUpdate mode: a new build must take over open tabs at once, otherwise a judge with the app
+// open keeps the previous build until every tab is closed.
+void self.skipWaiting();
+clientsClaim();
 
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
