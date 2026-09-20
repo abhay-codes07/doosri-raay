@@ -75,12 +75,34 @@ MEDIA_TYPES = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "w
 
 # Per-invocation collector so results never depend on parsing the agent's prose.
 _RUN: Dict[str, Any] = {}
+MAX_TOOL_CALLS = 12  # a case has <= 5 screenshots: extract x5 + validate + narrative + slack
+CONVERSATION_WINDOW = 20
 
 
-def _reset_run() -> None:
+class ToolBudgetExceeded(RuntimeError):
+    """The agent called more tools than one case can need: stop it, take the deterministic path."""
+
+
+def _reset_run(allowed_keys: Optional[List[str]] = None) -> None:
     _RUN.clear()
     _RUN["extracted"] = {}
     _RUN["narrative"] = None
+    _RUN["allowedKeys"] = list(allowed_keys or [])
+    _RUN["toolCalls"] = 0
+    _RUN["path"] = "fallback"
+    _RUN["error"] = None
+
+
+def _count_tool_call(name: str) -> None:
+    _RUN["toolCalls"] = _RUN.get("toolCalls", 0) + 1
+    if _RUN["toolCalls"] > MAX_TOOL_CALLS:
+        raise ToolBudgetExceeded("tool budget of %d exceeded at %s" % (MAX_TOOL_CALLS, name))
+
+
+def _untrusted(label: str, value: Any) -> str:
+    """Wrap user-supplied text so the model reads it as data, never as instructions."""
+    text = str(value or "").replace("</untrusted_data>", "</untrusted_data >")
+    return "<untrusted_data name=%s>%s</untrusted_data>" % (json.dumps(label), text)
 
 
 # --- tools (plain functions; decorated for Strands when available) ------------------
@@ -98,6 +120,12 @@ def extract_transactions(object_key: str) -> Dict[str, Any]:
     Args:
         object_key: S3 key of the screenshot under the case's circle prefix.
     """
+    _count_tool_call("extract_transactions")
+    allowed = _RUN.get("allowedKeys") or []
+    if object_key not in allowed:
+        # the model may only read the screenshots attached to THIS case (never a key it invented)
+        log.warning("extract_transactions refused key outside the case: %s", object_key)
+        return {"objectKey": object_key, "txns": [], "error": "object_key_not_in_case"}
     image_bytes, media = _fetch_image(object_key)
     result = bedrock.converse_structured(
         None, None, EXTRACT_SYSTEM, [bedrock.image_block(image_bytes, media)], EXTRACT_TOOL, EXTRACT_SCHEMA, max_tokens=800
@@ -118,6 +146,7 @@ def validate_fields(txns: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     Args:
         txns: list of {utr, amount, payee, timestamp, app}.
     """
+    _count_tool_call("validate_fields")
     return rules.validate_fields(txns)
 
 
@@ -128,6 +157,7 @@ def lookup_ezero_threshold(state: str) -> Dict[str, Any]:
     Args:
         state: Indian state name.
     """
+    _count_tool_call("lookup_ezero_threshold")
     return rules.lookup_ezero_threshold(state)
 
 
@@ -139,11 +169,14 @@ def mrm_eligibility(confirmed_txns: List[Dict[str, Any]], frozen_amount_by_accou
         confirmed_txns: confirmed transactions.
         frozen_amount_by_account: optional map of account -> frozen amount in INR.
     """
+    _count_tool_call("mrm_eligibility")
     return rules.mrm_eligibility(confirmed_txns, frozen_amount_by_account)
 
 
 def _narrative_prompt(confirmed_txns: List[Dict[str, Any]], victim: str, hint: str, strict: bool) -> str:
-    payload = {"victim": victim, "hint": hint, "transactions": confirmed_txns}
+    # victim name and hint are typed by a user: each is wrapped as untrusted data on its own
+    payload = {"victim": _untrusted("victimName", victim), "hint": _untrusted("narrativeHint", hint),
+               "transactions": confirmed_txns}
     extra = " Use ONLY letters, digits, spaces, commas and full stops. At least 200 characters." if strict else ""
     return "Write the narrative for this case.%s\n%s" % (extra, json.dumps(payload, ensure_ascii=False, default=str))
 
@@ -157,6 +190,7 @@ def draft_narrative(confirmed_txns: List[Dict[str, Any]], victim: str, hint: str
         victim: victim name.
         hint: one-line description of what happened.
     """
+    _count_tool_call("draft_narrative")
     narrative: Optional[str] = None
     source = "template"
     for attempt, strict in enumerate((False, True)):
@@ -193,18 +227,39 @@ AGENT_SYSTEM = (
 
 def _agent() -> Any:
     model = BedrockModel(model_id=config.model_id(), region_name=config.bedrock_region(), temperature=0.0)
-    return Agent(model=model, tools=TOOLS, system_prompt=AGENT_SYSTEM)
+    kwargs: Dict[str, Any] = {}
+    try:  # bound the loop's context; Strands has no max_iterations, the tool budget above caps calls
+        from strands.agent.conversation_manager import SlidingWindowConversationManager  # type: ignore
+
+        kwargs["conversation_manager"] = SlidingWindowConversationManager(window_size=CONVERSATION_WINDOW)
+    except Exception:  # noqa: BLE001 - older Strands: default manager
+        pass
+    return Agent(model=model, tools=TOOLS, system_prompt=AGENT_SYSTEM, **kwargs)
 
 
 def _run_agent(prompt: str) -> bool:
+    """Run the Strands agent; record ``path`` (strands|fallback) and ``error`` in ``_RUN`` so the
+    CASE shows which path produced the result (a broken Strands install is visible, not silent)."""
     if not STRANDS_AVAILABLE:
+        _RUN["path"], _RUN["error"] = "fallback", "strands_not_installed"
         return False
     try:
         _agent()(prompt)
+        _RUN["path"] = "strands"
         return True
+    except ToolBudgetExceeded as exc:
+        log.warning("strands agent stopped: %s", exc)
+        _RUN["path"], _RUN["error"] = "fallback", str(exc)[:300]
+        return False
     except Exception as exc:  # noqa: BLE001 - deterministic path takes over
         log.warning("strands agent failed, using deterministic path: %s", exc)
+        _RUN["path"], _RUN["error"] = "fallback", ("%s: %s" % (type(exc).__name__, exc))[:300]
         return False
+
+
+def _path_attrs() -> Dict[str, Any]:
+    return {"agentPath": _RUN.get("path", "fallback"), "agentError": _RUN.get("error"),
+            "agentToolCalls": _RUN.get("toolCalls", 0)}
 
 
 # --- case helpers --------------------------------------------------------------------
@@ -238,17 +293,18 @@ def run_extract(circle_id: str, case_id: str) -> Dict[str, Any]:
     """Extract transactions from every screenshot; write ``extracted`` on the CASE."""
     case = load_case(circle_id, case_id)
     keys: List[str] = [k for k in case.get("objectKeys") or [] if isinstance(k, str)]
-    _reset_run()
+    _reset_run(allowed_keys=keys)
     _run_agent("Call extract_transactions for each of these screenshots, then validate_fields on the union: %s"
                % json.dumps(keys))
     txns: List[Dict[str, Any]] = []
     for key in keys:
         found = _RUN.get("extracted", {}).get(key)
         if found is None:
+            _RUN["toolCalls"] = 0  # the deterministic pass has its own budget
             found = extract_transactions(key)["txns"]
         txns.extend(found)
     extracted = {"txns": txns, "count": len(txns), "invalidCount": sum(1 for t in txns if not t.get("valid"))}
-    save_case(circle_id, case_id, {"extracted": extracted, "status": "awaiting_confirmation"})
+    save_case(circle_id, case_id, {"extracted": extracted, "status": "awaiting_confirmation", **_path_attrs()})
     return extracted
 
 
@@ -259,10 +315,11 @@ def run_build(circle_id: str, case_id: str) -> Dict[str, Any]:
     txns = confirmed_txns(case)
     victim = case.get("victimName") or "the complainant"
     hint = case.get("narrativeHint") or ""
-    _reset_run()
-    _run_agent("Call draft_narrative for victim %s with hint %s and these confirmed transactions: %s"
-               % (json.dumps(victim), json.dumps(hint), json.dumps(txns, default=str)))
+    _reset_run(allowed_keys=[k for k in case.get("objectKeys") or [] if isinstance(k, str)])
+    _run_agent("Call draft_narrative for the victim and hint below and these confirmed transactions.\n%s\n%s\n%s"
+               % (_untrusted("victimName", victim), _untrusted("narrativeHint", hint), json.dumps(txns, default=str)))
     if not _RUN.get("narrative"):
+        _RUN["toolCalls"] = 0
         draft_narrative(txns, victim, hint)
     narrative = _RUN.get("narrative") or {}
     text = narrative.get("text") or templates.ncrp_template_narrative(case, txns)
@@ -286,7 +343,7 @@ def run_build(circle_id: str, case_id: str) -> Dict[str, Any]:
         "ncrp": rules.ncrp_facts(),
         "mrmChecklist": templates.mrm_checklist(case, mrm),
     }
-    save_case(circle_id, case_id, {"artifacts": artifacts, "status": "awaiting_1930"})
+    save_case(circle_id, case_id, {"artifacts": artifacts, "status": "awaiting_1930", **_path_attrs()})
     return artifacts
 
 

@@ -41,7 +41,10 @@ def _fetch_image(object_key: str) -> Tuple[bytes, Optional[str]]:
     try:
         resp = aws.s3_client().get_object(Bucket=config.upload_bucket(), Key=object_key)
     except ClientError as exc:
-        if exc.response.get("Error", {}).get("Code") in ("NoSuchKey", "404", "NotFound"):
+        code = exc.response.get("Error", {}).get("Code")
+        status = exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+        # without s3:ListBucket a missing key surfaces as AccessDenied / 403, not NoSuchKey
+        if code in ("NoSuchKey", "404", "NotFound", "AccessDenied", "403") or status in (403, 404):
             raise ImageMissing(object_key) from exc
         raise
     declared = resp.get("ContentLength")
