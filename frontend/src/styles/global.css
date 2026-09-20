@@ -14,10 +14,12 @@
   --accent-ink: #ffffff;
   --accent-soft: #f6e3d3;
   --ok: #2f7d4f;
+  --ok-ink: #ffffff;
   --ok-soft: #e2f1e6;
   --amber: #b3720a;
   --amber-soft: #fbeccb;
   --red: #b3261e;
+  --red-ink: #ffffff;
   --red-soft: #f9dcd9;
   --grey: #6b6b6b;
   --grey-soft: #ececec;
@@ -44,10 +46,12 @@
     --accent-ink: #1b1612;
     --accent-soft: #3d2a1d;
     --ok: #7fcf9b;
+    --ok-ink: #1b1612;
     --ok-soft: #1f3a29;
     --amber: #f0b64a;
     --amber-soft: #3f3212;
     --red: #ff8a80;
+    --red-ink: #1b1612;
     --red-soft: #4a2320;
     --grey: #bdbdbd;
     --grey-soft: #333333;
@@ -154,8 +158,11 @@ a {
 
 .nav a,
 .nav button {
-  min-height: 40px;
-  padding: 6px 12px;
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
   border-radius: 999px;
   border: 1px solid var(--line);
   background: var(--bg-elev);
@@ -330,13 +337,13 @@ a {
 
 .btn-ok {
   background: var(--ok);
-  color: #fff;
+  color: var(--ok-ink);
   border-color: transparent;
 }
 
 .btn-danger {
   background: var(--red);
-  color: #fff;
+  color: var(--red-ink);
   border-color: transparent;
 }
 
