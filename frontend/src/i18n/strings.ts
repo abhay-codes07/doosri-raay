@@ -326,7 +326,7 @@ export const S = {
   tooLarge: { hi: 'फ़ाइल {max} से बड़ी है।', en: 'File is larger than {max}.' },
   tooManyShots: { hi: 'एक केस में ज़्यादा से ज़्यादा {max} स्क्रीनशॉट।', en: 'At most {max} screenshots per case.' },
   shotLimits: { hi: 'ज़्यादा से ज़्यादा {max}, हर एक ≤ {size}', en: 'up to {max}, each ≤ {size}' },
-  notImage: { hi: 'सिर्फ़ तस्वीरें (image) चुनें।', en: 'Only images are allowed.' },
+  notImage: { hi: 'सिर्फ़ PNG, JPEG, WebP या GIF तस्वीरें चुनें।', en: 'Only PNG, JPEG, WebP or GIF images are allowed.' },
 
   // ---- case detail ----
   caseTitle: { hi: 'केस', en: 'Case' },

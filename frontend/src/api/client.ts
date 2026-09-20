@@ -28,6 +28,7 @@ import type {
   UploadRequest,
   UploadResponse,
 } from './types';
+import { ACCEPTED_IMAGE_TYPES } from '../lib/validate';
 
 export const API_URL: string = (import.meta.env.VITE_API_URL ?? '').replace(/\/+$/, '');
 
@@ -175,7 +176,7 @@ export function createApiClient(getToken: TokenProvider = amplifyTokenProvider):
 
     requestUpload: (req) => request('POST', '/uploads', req),
     uploadFile: async (file, purpose) => {
-      const contentType = file.type && file.type.startsWith('image/') ? file.type : 'image/png';
+      const contentType = (ACCEPTED_IMAGE_TYPES as readonly string[]).includes(file.type) ? file.type : 'image/png';
       const presigned = await client.requestUpload({ contentType, purpose });
       const fields = presigned.fields ?? {};
       const form = new FormData();

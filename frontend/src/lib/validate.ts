@@ -64,8 +64,12 @@ export function formatBytes(n: number): string {
   return `${n} B`;
 }
 
+/** Types the backend (and Bedrock) accept; HEIC is rejected here rather than at upload time. */
+export const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'] as const;
+export const ACCEPT_IMAGES = ACCEPTED_IMAGE_TYPES.join(',');
+
 export function isImageFile(f: File): boolean {
-  return f.type.startsWith('image/');
+  return (ACCEPTED_IMAGE_TYPES as readonly string[]).includes(f.type);
 }
 
 /** Downscale an image file to a small JPEG data URL for local previews (keeps localStorage small). */

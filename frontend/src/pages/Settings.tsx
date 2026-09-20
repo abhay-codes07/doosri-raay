@@ -4,7 +4,7 @@ import { useApi } from '../api/context';
 import { describeError } from '../api/client';
 import { Spinner } from '../components/ui';
 import { Bi, useT } from '../i18n/LangContext';
-import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL, fileToPreview, formatBytes, isImageFile } from '../lib/validate';
+import { ACCEPT_IMAGES, MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL, fileToPreview, formatBytes, isImageFile } from '../lib/validate';
 import { useSession } from '../session';
 
 /**
@@ -154,7 +154,7 @@ export function SettingsPage() {
           <input
             id={`${uid}-file`}
             type="file"
-            accept="image/*"
+            accept={ACCEPT_IMAGES}
             disabled={photoBusy !== null}
             onChange={(e) => void pickPhoto(e.target.files?.[0] ?? null)}
           />

@@ -4,7 +4,7 @@ import { describeError, isAbort } from '../api/client';
 import type { Report } from '../api/types';
 import { Bi, useT } from '../i18n/LangContext';
 import { rememberReport, savePreview } from '../lib/storage';
-import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL, fileToPreview, formatBytes, isImageFile } from '../lib/validate';
+import { ACCEPT_IMAGES, MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL, fileToPreview, formatBytes, isImageFile } from '../lib/validate';
 import { VerdictCard } from './VerdictCard';
 import { Spinner } from './ui';
 
@@ -136,7 +136,7 @@ export function ScreenshotCheck({
               id={`${uid}-file`}
               ref={fileInput}
               type="file"
-              accept="image/*"
+              accept={ACCEPT_IMAGES}
               disabled={busy}
               onChange={(e) => onFile(e.target.files?.[0] ?? null)}
             />

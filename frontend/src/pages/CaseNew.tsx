@@ -7,7 +7,7 @@ import { INDIAN_STATES } from '../data/states';
 import { useT } from '../i18n/LangContext';
 import { istDateString } from '../lib/dates';
 import { savePreview } from '../lib/storage';
-import { MAX_CASE_SCREENSHOTS, MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL, fileToPreview, formatBytes, isImageFile } from '../lib/validate';
+import { ACCEPT_IMAGES, MAX_CASE_SCREENSHOTS, MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL, fileToPreview, formatBytes, isImageFile } from '../lib/validate';
 import { useSession } from '../session';
 
 interface Picked {
@@ -142,7 +142,7 @@ export function CaseNewPage() {
           <input
             id="shots"
             type="file"
-            accept="image/*"
+            accept={ACCEPT_IMAGES}
             multiple
             disabled={busy || picked.length >= MAX_CASE_SCREENSHOTS}
             onChange={(e) => {
