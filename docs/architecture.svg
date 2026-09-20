@@ -170,16 +170,16 @@
     <text x="40" y="548" font-size="16" font-weight="700" fill="#1f1a17">Local mode: docker-compose + LocalStack + SAM local (make local-*)</text>
     <rect x="40" y="566" width="230" height="84" rx="8" fill="#eaf4ea" stroke="#2f6b3a" stroke-width="1.5"/>
     <text x="155" y="590" text-anchor="middle" font-weight="700" fill="#1f1a17">LocalStack</text>
-    <text x="155" y="610" text-anchor="middle" fill="#3c3530">DynamoDB, S3, SSM, Lambda</text>
-    <text x="155" y="628" text-anchor="middle" fill="#3c3530">same table and bucket names</text>
+    <text x="155" y="610" text-anchor="middle" fill="#3c3530">S3 and DynamoDB only (community)</text>
+    <text x="155" y="628" text-anchor="middle" fill="#3c3530">doosriraay-local table and bucket</text>
     <rect x="290" y="566" width="250" height="84" rx="8" fill="#fff3e0" stroke="#b5541c" stroke-width="1.5"/>
     <text x="415" y="590" text-anchor="middle" font-weight="700" fill="#1f1a17">sam local start-api</text>
-    <text x="415" y="610" text-anchor="middle" fill="#3c3530">the api Lambda against LocalStack</text>
-    <text x="415" y="628" text-anchor="middle" fill="#3c3530">endpoints (AWS_ENDPOINT_URL)</text>
+    <text x="415" y="610" text-anchor="middle" fill="#3c3530">the api Lambda on the compose network;</text>
+    <text x="415" y="628" text-anchor="middle" fill="#3c3530">no JWT authorizer emulation</text>
     <rect x="560" y="566" width="290" height="84" rx="8" fill="#f3e8f7" stroke="#6b3a8c" stroke-width="1.5"/>
-    <text x="705" y="590" text-anchor="middle" font-weight="700" fill="#1f1a17">Not in LocalStack community</text>
-    <text x="705" y="610" text-anchor="middle" fill="#3c3530">Step Functions and Bedrock: the classifier uses</text>
-    <text x="705" y="628" text-anchor="middle" fill="#3c3530">the pattern stub; state machines run in the cloud</text>
+    <text x="705" y="590" text-anchor="middle" font-weight="700" fill="#1f1a17">Not local: Bedrock, Polly, Step Functions</text>
+    <text x="705" y="610" text-anchor="middle" fill="#3c3530">LOCAL_STUB_SFN=1 records the start instead;</text>
+    <text x="705" y="628" text-anchor="middle" fill="#3c3530">timers, rungs and the model need the cloud stack</text>
     <rect x="870" y="566" width="290" height="84" rx="8" fill="#e8eef7" stroke="#3b5b8c" stroke-width="1.5"/>
     <text x="1015" y="590" text-anchor="middle" font-weight="700" fill="#1f1a17">Frontend: npm run dev</text>
     <text x="1015" y="610" text-anchor="middle" fill="#3c3530">VITE_API_URL to the local API;</text>
