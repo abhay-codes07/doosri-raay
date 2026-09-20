@@ -114,13 +114,16 @@ function RequireCircle({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-/** Onboarding reads the session once on mount, so wait for the first profile load. */
+/**
+ * Onboarding reads the session once on mount, so wait for the first profile load. It is not keyed
+ * on circleId: session.reload() after the pact must not remount it back at the profile step.
+ */
 function OnboardingRoute() {
   const s = useSession();
   if (s.loading && !s.profile) return <PageSpinner />;
   return (
     <div className="page">
-      <OnboardingPage key={s.profile?.circleId ?? 'none'} />
+      <OnboardingPage />
     </div>
   );
 }
