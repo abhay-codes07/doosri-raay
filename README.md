@@ -337,7 +337,7 @@ placeholder and this README claims no accuracy. Why three states rather than two
 |---|---|---|
 | Frontend | Rajat Nagda | React PWA, bilingual auth, parent tile with check-in / Puchho / covert SOS, guardian dashboard and task cards, case intake and detail with source lines, Settings, `/demo`, `/try`, service worker, Web Push |
 | Backend and model | Abhay Singh | API handlers, classifier worker (forced tool use), Strands recovery agent with deterministic fallback, narrative re-check, rules as data, sources verification, Polly cache, eval set and harness, 98 tests |
-| Infrastructure and Step Functions | `<NAME>` | SAM template, three state machines with `waitForTaskToken` + `TimeoutSecondsPath`, Makefile, container image, LocalStack local mode, first-deploy checklist |
+| Infrastructure and Step Functions | Abhay Singh | SAM template, three state machines with `waitForTaskToken` + `TimeoutSecondsPath`, Makefile, container image, LocalStack local mode, first-deploy checklist |
 | Product, demo and research | `<NAME>` | 25-case research and the pivot, sourced numbers, prior art, contracts, seed data and synthetic screenshots, demo script, README, submission, blog, pact card |
 
 Student verification on AWS Builder Center for every teammate: `<FILL BEFORE SUBMISSION>`. Full split:
